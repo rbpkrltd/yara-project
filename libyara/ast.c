@@ -22,9 +22,10 @@ GNU General Public License for more details.
 #include "yara.h"
 #include "ast.h"
 #include "error.h"
-#include "mem.h"
 
-#define todigit(x)  ((x) >='A'&& (x) <='F')? ((unsigned char) (x - 'A' + 10)) : ((unsigned char) (x - '0'))
+#ifdef WIN32
+#define strdup _strdup
+#endif
 
 RULE* lookup_rule(RULE_LIST* rules, char* identifier)
 {
@@ -113,12 +114,11 @@ int require_exe_file(TERM* term)
 int new_rule(RULE_LIST* rules, char* identifier, int flags, TAG* tag_list_head, STRING* string_list_head, TERM* condition)
 {
     RULE* new_rule;
-    
     int result = ERROR_SUCCESS;
     
     if (lookup_rule(rules, identifier) == NULL)  /* do not allow rules with the same identifier */
     {
-        new_rule = (RULE*) yr_malloc(sizeof(RULE));
+        new_rule = (RULE*) malloc(sizeof(RULE));
     
         if (new_rule != NULL)
         {
@@ -128,7 +128,7 @@ int new_rule(RULE_LIST* rules, char* identifier, int flags, TAG* tag_list_head, 
             new_rule->string_list_head = string_list_head;
             new_rule->condition = condition;
             new_rule->next = NULL;
-            
+        
             if (rules->head == NULL && rules->tail == NULL)  /* list is empty */
             {
                 rules->head = new_rule;
@@ -152,9 +152,9 @@ int new_rule(RULE_LIST* rules, char* identifier, int flags, TAG* tag_list_head, 
     }
     else
     {
-        result = ERROR_DUPLICATE_RULE_IDENTIFIER;
+        result = ERROR_DUPLICATERULEIDENTIFIER;
     }
-
+    
     return result;
 }
 
@@ -164,18 +164,15 @@ int new_hex_string(SIZED_STRING* charstr, unsigned char** hexstr, unsigned char*
     int skip_lo;
     int skip_hi;
     int skip_exact;
-    char c,d;
+    int nibble_count;
+    char c;
     char* s;
     char* closing_bracket;
-    int inside_or;
-    int or_count;
     int len;  
     int result = ERROR_SUCCESS;
     
     unsigned char high_nibble = 0;
-    unsigned char low_nibble = 0;
     unsigned char mask_high_nibble = 0;
-    unsigned char mask_low_nibble = 0;
     unsigned char* hex;
     unsigned char* mask;
     
@@ -185,39 +182,72 @@ int new_hex_string(SIZED_STRING* charstr, unsigned char** hexstr, unsigned char*
     
     //assert(charstr[0] == '{' && charstr[len - 1] == '}');
     
-    *hexstr = hex = (unsigned char*) yr_malloc(len / 2);
-    *maskstr = mask = (unsigned char*) yr_malloc(len);
+    *hexstr = hex = (unsigned char*) malloc(len / 2);
+    *maskstr = mask = (unsigned char*) malloc(len);
     
     if (hex == NULL || mask == NULL)
     {
-        if (hex) yr_free(hex);
-        if (mask) yr_free(mask);
+        if (hex) free(hex);
+        if (mask) free(mask);
         
         return ERROR_INSUFICIENT_MEMORY;
     }
     
     i = 1;  
+    nibble_count = 0;
     *length = 0;
-    inside_or = FALSE;
     
     while (i < len - 1)
     {
         c = toupper(charstr->c_string[i]);    
         
-        if (isalnum(c) || (c == '?'))
-        {   
-            d = toupper(charstr->c_string[i + 1]);
-            
-            if (!isalnum(d) && (d != '?'))
+        if (c >= 'A' && c <= 'F')
+        {               
+            if (nibble_count % 2 != 0)
+            {           
+                *hex = (high_nibble << 4) | (unsigned char) (c - 'A' + 10);
+                hex++;
+                (*length)++;
+
+                *mask++ = (mask_high_nibble << 4) | 0x0F;
+            }
+            else
             {
-                result = ERROR_UNPAIRED_NIBBLE;
-                break;
+                high_nibble = (unsigned char) (c - 'A' + 10);
+                mask_high_nibble = 0x0F;
+            }
+
+            i++;
+			nibble_count++;
+        }
+        else if (c >= '0' && c <= '9')
+        {
+            if (nibble_count % 2 != 0)
+            {   
+                *hex = (high_nibble << 4) | (unsigned char) (c - '0');
+                hex++;
+                (*length)++;
+                
+                *mask++ = (mask_high_nibble << 4) | 0x0F;
+            }
+            else
+            {
+                high_nibble = (unsigned char) (c - '0');
+                mask_high_nibble = 0x0F;
             }
             
-            if (c != '?')
-            {  
-                high_nibble = todigit(c);
-                mask_high_nibble = 0x0F;
+            i++;
+   			nibble_count++;
+        }       
+        else if (c == '?')
+        {
+            if (nibble_count % 2 != 0)
+            {   
+                *hex = (high_nibble << 4) ;
+                hex++;
+                (*length)++;
+                
+                *mask++ = (mask_high_nibble << 4);
             }
             else
             {
@@ -225,61 +255,24 @@ int new_hex_string(SIZED_STRING* charstr, unsigned char** hexstr, unsigned char*
                 mask_high_nibble = 0;
             }
             
-            if (d != '?')
-            {  
-                low_nibble = todigit(d);
-                mask_low_nibble = 0x0F;
-            }
-            else
-            {
-                low_nibble = 0;
-                mask_low_nibble = 0;
-            }
-                      
-            *hex++ = (high_nibble << 4) | (low_nibble); 
-            *mask++ = (mask_high_nibble << 4) | (mask_low_nibble);
-            
-            (*length)++; 
-            
-            i+=2;
-        }      
-        else if (c == '(')
-        {            
-            if (inside_or)
-            {
-                result = ERROR_NESTED_OR_OPERATION;
-                break;                
-            }
-            
-            inside_or = TRUE;
-            *mask++ = MASK_OR;
-            i++;
-        }
-        else if (c == ')')
-        {
-            inside_or = FALSE;
-            *mask++ = MASK_OR_END;
-            i++;
-        }
-        else if (c == '|')
-        {   
-            if (!inside_or)
-            {
-                result = ERROR_MISPLACED_OR_OPERATOR;
-                break;
-            }
-            
-            *mask++ = MASK_OR;
-            i++;
+            i++; 
+   			nibble_count++;
         }
         else if (c == '[')
         {   
-            if (inside_or)
+            /* 
+                before any skip instrucion (e.g.[0-4]) an even amount of nibbles should appear
+                defining a full sequence of bytes
+            */
+            
+            if (nibble_count % 2 != 0)  
             {
-                result = ERROR_SKIP_INSIDE_OR_OPERATION;
+                result = ERROR_UNPAIRED_NIBBLE;
                 break;
             }
-                        
+            
+            nibble_count = 0;
+            
             closing_bracket = strchr(charstr->c_string + i + 1, ']');
 
             if (closing_bracket == NULL)
@@ -287,22 +280,15 @@ int new_hex_string(SIZED_STRING* charstr, unsigned char** hexstr, unsigned char*
                 result = ERROR_MISMATCHED_BRACKET;
                 break;
             } 
-            else  
+            else if (*(closing_bracket + 1) == '}')  /* no skip instruction should exists at the end of the string */
             {
-                s = closing_bracket + 1; 
-                
-                while (*s == ' ') s++;  /* skip spaces */
-                
-                if (*s == '}')          /* no skip instruction should exists at the end of the string */
-                {
-                    result = ERROR_SKIP_AT_END;
-                    break;          
-                } 
-                else if (*s == '[')     /* consecutive skip intructions are not allowed */
-                {
-                    result = ERROR_CONSECUTIVE_SKIPS;
-                    break;          
-                }   
+                result = ERROR_SKIP_AT_END;
+                break;              
+            }
+            else if (*(closing_bracket + 1) == '[')  /* consecutive skip intructions are not allowed */
+            {
+                result = ERROR_CONSECUTIVE_SKIPS;
+                break;              
             }
             
             /* only decimal digits and '-' are allowed between brackets */
@@ -356,15 +342,15 @@ int new_hex_string(SIZED_STRING* charstr, unsigned char** hexstr, unsigned char*
             i = (int) (closing_bracket - charstr->c_string + 1); 
             
         }
+		else if (c == ' ')
+		{
+			i++;
+		}
         else if (c == ']')
         {
             result = ERROR_MISMATCHED_BRACKET;
             break;          
         }
-        else if (c == ' ')
-		{
-			i++;
-		}
         else 
         {
             result = ERROR_INVALID_CHAR_IN_HEX_STRING;
@@ -381,42 +367,16 @@ int new_hex_string(SIZED_STRING* charstr, unsigned char** hexstr, unsigned char*
     {
         result = ERROR_MISPLACED_WILDCARD_OR_SKIP;
     }
-        
-    /* check if byte or syntax is correct */
     
-    i = 0;
-    or_count = 0;
-    
-    while ((*maskstr)[i] != MASK_END)
+    if (result == ERROR_SUCCESS && nibble_count % 2 != 0)  
     {
-        if ((*maskstr)[i] == MASK_OR)
-        {
-            or_count++;
-            
-            if ( (*maskstr)[i+1] == MASK_OR || (*maskstr)[i+1] == MASK_OR_END )
-            {
-                result = ERROR_INVALID_OR_OPERATION_SYNTAX;
-                break;
-            }
-        }
-        else if ((*maskstr)[i] == MASK_OR_END)
-        {
-            if (or_count <  2)
-            {
-                result = ERROR_INVALID_OR_OPERATION_SYNTAX;
-                break;              
-            }
-            
-            or_count = 0;
-        }
-        
-        i++;
+        result = ERROR_UNPAIRED_NIBBLE;
     }
     
     if (result != ERROR_SUCCESS)
     {
-        yr_free(*hexstr);
-        yr_free(*maskstr); 
+        free(*hexstr);
+        free(*maskstr); 
         *hexstr = NULL;
         *maskstr = NULL;
     }
@@ -435,15 +395,16 @@ int new_text_string(SIZED_STRING* charstr, int flags, unsigned char** hexstr, RE
     //assert(charstr && hexstr && regexp && length);
     
     *length = charstr->length;
-    *hexstr = yr_malloc(charstr->length);
+    *hexstr = malloc(charstr->length);
     
     if (*hexstr == NULL)
     {
         return ERROR_INSUFICIENT_MEMORY;
     }
-
+    
     memcpy(*hexstr, charstr->c_string, charstr->length);
-         
+    
+     
      if (flags & STRING_FLAGS_REGEXP)
      {           
 		options = PCRE_ANCHORED;
@@ -452,8 +413,8 @@ int new_text_string(SIZED_STRING* charstr, int flags, unsigned char** hexstr, RE
          {
              options |= PCRE_CASELESS;
          }
-
-         re->regexp = pcre_compile(charstr->c_string, options, &error, &erroffset, NULL); 
+     
+         re->regexp = pcre_compile((char*) *hexstr, options, &error, &erroffset, NULL); 
 
          if (re->regexp != NULL)  
          {
@@ -480,13 +441,10 @@ int new_string(char* identifier, SIZED_STRING* charstr, int flags, STRING** stri
     STRING* new_string;
     int result = ERROR_SUCCESS;
         
-    new_string = (STRING*) yr_malloc(sizeof(STRING));
+    new_string = (STRING*) malloc(sizeof(STRING));
     
     if(new_string != NULL)
     {
-        if (!(flags & STRING_FLAGS_WIDE))
-            flags |= STRING_FLAGS_ASCII;
-        
         new_string->identifier = identifier;
         new_string->flags = flags;
         new_string->next = NULL;
@@ -503,7 +461,7 @@ int new_string(char* identifier, SIZED_STRING* charstr, int flags, STRING** stri
         
         if (result != ERROR_SUCCESS)
         {
-            yr_free(new_string);
+            free(new_string);
             new_string = NULL;
         }   
     }
@@ -511,7 +469,7 @@ int new_string(char* identifier, SIZED_STRING* charstr, int flags, STRING** stri
     {
         result = ERROR_INSUFICIENT_MEMORY;   
     }
-
+    
     *string = new_string;
     return result;
 }
@@ -521,7 +479,7 @@ int new_simple_term(int type, TERM** term)
     TERM* new_term;
     int result = ERROR_SUCCESS;
     
-    new_term = (TERM*) yr_malloc(sizeof(TERM));
+    new_term = (TERM*) malloc(sizeof(TERM));
     
     if (new_term != NULL)
     {
@@ -537,62 +495,19 @@ int new_simple_term(int type, TERM** term)
     return result;	
 }
 
-int new_unary_operation(int type, TERM* op, TERM_UNARY_OPERATION** term)
-{
-    TERM_UNARY_OPERATION* new_term;
-    int result = ERROR_SUCCESS;
-    
-    new_term = (TERM_UNARY_OPERATION*) yr_malloc(sizeof(TERM_UNARY_OPERATION));
-    
-    if (new_term != NULL)
-    {
-        new_term->type = type;
-        new_term->op = op;
-    }
-    else
-    {
-        result = ERROR_INSUFICIENT_MEMORY;
-    }
-    
-    *term = new_term;   
-    return result;
-}
-
 int new_binary_operation(int type, TERM* op1, TERM* op2, TERM_BINARY_OPERATION** term)
 {
     TERM_BINARY_OPERATION* new_term;
     int result = ERROR_SUCCESS;
     
-    new_term = (TERM_BINARY_OPERATION*) yr_malloc(sizeof(TERM_BINARY_OPERATION));
+    new_term = (TERM_BINARY_OPERATION*) malloc(sizeof(TERM_BINARY_OPERATION));
     
     if (new_term != NULL)
     {
         new_term->type = type;
         new_term->op1 = op1;
         new_term->op2 = op2;
-    }
-    else
-    {
-        result = ERROR_INSUFICIENT_MEMORY;
-    }
-    
-    *term = new_term;   
-    return result;
-}
-
-int new_ternary_operation(int type, TERM* op1, TERM* op2, TERM* op3, TERM_TERNARY_OPERATION** term)
-{
-    TERM_TERNARY_OPERATION* new_term;
-    int result = ERROR_SUCCESS;
-    
-    new_term = (TERM_TERNARY_OPERATION*) yr_malloc(sizeof(TERM_TERNARY_OPERATION));
-    
-    if (new_term != NULL)
-    {
-        new_term->type = type;
-        new_term->op1 = op1;
-        new_term->op2 = op2;
-        new_term->op3 = op3;
+        new_term->next = NULL;
     }
     else
     {
@@ -608,12 +523,13 @@ int new_constant(unsigned int constant, TERM_CONST** term)
     TERM_CONST* new_term;
     int result = ERROR_SUCCESS;
     
-    new_term = (TERM_CONST*) yr_malloc(sizeof(TERM_CONST));
+    new_term = (TERM_CONST*) malloc(sizeof(TERM_CONST));
 
     if (new_term != NULL)
     {
         new_term->type = TERM_TYPE_CONST;
         new_term->value = constant;
+        new_term->next = NULL;
     }
     else
     {
@@ -630,88 +546,61 @@ int new_string_identifier(int type, STRING* defined_strings, char* identifier, T
     STRING* string;
     int result = ERROR_SUCCESS;
     
-    if (strcmp(identifier, "$") != 0) /* non-anonymous strings */
+    string = lookup_string(defined_strings, identifier);
+    
+    if (string != NULL)
     {
-        string = lookup_string(defined_strings, identifier);
-      
-        if (string != NULL)
-        {
-    		/* the string has been used in an expression, mark it as referenced */
-    		string->flags |= STRING_FLAGS_REFERENCED;  
+		/* the string has been used in an expression, mark it as referenced */
+		string->flags |= STRING_FLAGS_REFERENCED;  
 	
-            new_term = (TERM_STRING*) yr_malloc(sizeof(TERM_STRING));
-
-            if (new_term != NULL)
-            {
-                new_term->type = type;
-                new_term->string = string;
-                new_term->next = NULL;
-            }
-        }
-        else
-        {
-            result = ERROR_UNDEFINED_STRING;
-        }
-    }
-    else  /* anonymous strings */
-    {
-        new_term = (TERM_STRING*) yr_malloc(sizeof(TERM_STRING));
+        new_term = (TERM_STRING*) malloc(sizeof(TERM_STRING));
 
         if (new_term != NULL)
         {
             new_term->type = type;
-            new_term->string = NULL;
+            new_term->string = string;
             new_term->next = NULL;
-        }      
+        }
+        else
+        {
+            result = ERROR_INSUFICIENT_MEMORY;
+        }
+    }
+    else
+    {
+        result = ERROR_UNDEFINED_STRING;
     }
     
     *term = new_term;   
     return result;
 }
 
+
+
 /* 
 	free_term(TERM* term)
 
 	Frees a term. If the term depends on other terms they are also freed. Notice that
 	some terms hold references to STRING structures, but these structures are freed
-	by yr_free_rule_list, not by this function.
+	by free_rule_list, not by this function.
 	
 */
 
 void free_term(TERM* term)
 {
-    TERM_STRING* next;
-    TERM_STRING* tmp;
-
     switch(term->type)
     {
-    case TERM_TYPE_STRING:
-    
-        next = ((TERM_STRING*) term)->next;
-    
-        while (next != NULL)
-        {
-            tmp = next->next;
-            yr_free(next);
-            next = tmp;     
-        }
-    
-        break;
-    
 	case TERM_TYPE_STRING_AT:
-	
 		free_term(((TERM_STRING*)term)->offset);
 		break;
 	
 	case TERM_TYPE_STRING_IN_RANGE:
-	
         free_term(((TERM_STRING*)term)->lower_offset);
 		free_term(((TERM_STRING*)term)->upper_offset);
         break;
 
 	case TERM_TYPE_STRING_IN_SECTION_BY_NAME:
-	    
-	    yr_free(((TERM_STRING*)term)->section_name);
+	    free(((TERM_STRING*)term)->section_name);
 		break;
                     
     case TERM_TYPE_AND:          
@@ -725,34 +614,106 @@ void free_term(TERM* term)
     case TERM_TYPE_GE:       
     case TERM_TYPE_LE:
     case TERM_TYPE_EQ:
-    case TERM_TYPE_OF:
-    case TERM_TYPE_NOT_EQ:
         free_term(((TERM_BINARY_OPERATION*)term)->op1);
         free_term(((TERM_BINARY_OPERATION*)term)->op2);
         break;        
-                  
-    case TERM_TYPE_NOT:
-    case TERM_TYPE_INT8_AT_OFFSET:
-    case TERM_TYPE_INT16_AT_OFFSET:
-    case TERM_TYPE_INT32_AT_OFFSET:  
-    case TERM_TYPE_UINT8_AT_OFFSET:
-    case TERM_TYPE_UINT16_AT_OFFSET:
-    case TERM_TYPE_UINT32_AT_OFFSET:
-        free_term(((TERM_UNARY_OPERATION*)term)->op);
-        break;
-        
-    case TERM_TYPE_FOR:
-        free_term(((TERM_TERNARY_OPERATION*)term)->op1);
-        free_term(((TERM_TERNARY_OPERATION*)term)->op2);
-        
-        if (((TERM_TERNARY_OPERATION*)term)->op3 != NULL)
-           free_term(((TERM_TERNARY_OPERATION*)term)->op3); 
-           
+                      
+    case TERM_TYPE_NOT:    
+        free_term(((TERM_BINARY_OPERATION*)term)->op1);
         break;
     }
     
-    yr_free(term);
+    free(term);
+}
+
+RULE_LIST* alloc_rule_list()
+{
+	RULE_LIST* rule_list = (RULE_LIST*) malloc(sizeof(RULE_LIST));
+
+	rule_list->head = NULL;
+	rule_list->tail = NULL;
+    rule_list->non_hashed_strings = NULL;
+
+	memset(rule_list->hash_table, 0, sizeof(rule_list->hash_table));
+
+	return rule_list;
 }
 
 
+/* 
+	void free_rule_list(RULE_LIST* rule_list)
+
+	Frees a list of rules, its strings and conditions.
+	
+*/
+
+void free_rule_list(RULE_LIST* rule_list)
+{
+    RULE* rule;
+    RULE* next_rule;
+    STRING* string;
+    STRING* next_string;
+    MATCH* match;
+    MATCH* next_match;
+	TAG* tag;
+	TAG* next_tag;
+    
+    rule = rule_list->head;
+    
+    while (rule != NULL)
+    {
+        next_rule = rule->next;
+        
+        string = rule->string_list_head;
+        
+        while (string != NULL)
+        {
+            next_string = string->next;
+            
+			free(string->identifier);
+            free(string->string);
+            
+            if (IS_HEX(string))
+            {   
+                free(string->mask);
+            }
+            else if (IS_REGEXP(string))
+            {
+                pcre_free(string->re.regexp);
+                pcre_free(string->re.extra);
+            }
+            
+            match = string->matches;
+            
+            while (match != NULL)
+            {
+                next_match = match->next;
+                free(match);
+                match = next_match;
+            }
+            
+            free(string);
+            string = next_string;
+        }
+
+		tag = rule->tag_list_head;
+
+		while (tag != NULL)
+		{
+			next_tag = tag->next;
+			
+			free(tag->identifier);
+			free(tag);
+			
+			tag = next_tag;
+		}
+        
+        free_term(rule->condition);
+        
+        free(rule);
+        rule = next_rule;
+    }
+
+	free(rule_list);
+}
 

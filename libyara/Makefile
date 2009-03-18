@@ -59,7 +59,7 @@ libLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libyara_la_LIBADD =
 am_libyara_la_OBJECTS = grammar.lo lex.lo ast.lo scan.lo filemap.lo \
-	error.lo eval.lo pefile.lo xtoi.lo mem.lo libyara.lo
+	error.lo compile.lo eval.lo pefile.lo xtoi.lo
 libyara_la_OBJECTS = $(am_libyara_la_OBJECTS)
 DEFAULT_INCLUDES = -I.
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -145,15 +145,15 @@ OBJEXT = o
 PACKAGE = libyara
 PACKAGE_BUGREPORT = vmalvarez@hispasec.com
 PACKAGE_NAME = libyara
-PACKAGE_STRING = libyara 1.1.1
+PACKAGE_STRING = libyara 1.1
 PACKAGE_TARNAME = libyara
-PACKAGE_VERSION = 1.1.1
+PACKAGE_VERSION = 1.1
 PATH_SEPARATOR = :
 RANLIB = ranlib
 SET_MAKE = 
 SHELL = /bin/sh
 STRIP = strip
-VERSION = 1.1.1
+VERSION = 1.1
 YACC = bison -y
 YFLAGS = -d
 abs_builddir = /Users/plusvic/Projects/yara/trunk/libyara
@@ -216,20 +216,18 @@ libyara_la_SOURCES = \
   scan.c \
   filemap.c \
   error.c \
+  compile.c \
   eval.c \
   pefile.c \
   xtoi.c \
-  mem.c \
-  libyara.c \
   ast.h \
   error.h \
+  compile.h \
   eval.h \
   filemap.h \
   pe.h \
   xtoi.h \
-  pefile.h \
-  sizedstr.h \
-  mem.h
+  pefile.h
 
 libyara_la_LIBDADD = /usr/local/lib/libpcre.la
 all: config.h
@@ -329,13 +327,12 @@ distclean-compile:
 	-rm -f *.tab.c
 
 include ./$(DEPDIR)/ast.Plo
+include ./$(DEPDIR)/compile.Plo
 include ./$(DEPDIR)/error.Plo
 include ./$(DEPDIR)/eval.Plo
 include ./$(DEPDIR)/filemap.Plo
 include ./$(DEPDIR)/grammar.Plo
 include ./$(DEPDIR)/lex.Plo
-include ./$(DEPDIR)/libyara.Plo
-include ./$(DEPDIR)/mem.Plo
 include ./$(DEPDIR)/pefile.Plo
 include ./$(DEPDIR)/scan.Plo
 include ./$(DEPDIR)/xtoi.Plo

@@ -35,7 +35,7 @@ GNU General Public License for more details.
 int map_file(const char* file_path, MAPPED_FILE* pmapped_file)
 {
 	if (file_path == NULL)
-		return ERROR_INVALID_ARGUMENT;
+		return 0;
 
 	pmapped_file->file = CreateFile(	file_path, 
 										GENERIC_READ, 
@@ -46,15 +46,15 @@ int map_file(const char* file_path, MAPPED_FILE* pmapped_file)
 										NULL );
 	
 	if (pmapped_file->file == INVALID_HANDLE_VALUE) 
-	{     
-		return ERROR_COULD_NOT_OPEN_FILE;
+	{ 
+		return 0;
 	}
 
 	pmapped_file->size = GetFileSize(pmapped_file->file, NULL);
 
 	if (pmapped_file->size == 0)
 	{
-		return ERROR_ZERO_LENGTH_FILE;
+		return 0;
 	}
 
 	pmapped_file->mapping = CreateFileMapping(pmapped_file->file, NULL, PAGE_READONLY, 0, 0, NULL); 
@@ -62,7 +62,7 @@ int map_file(const char* file_path, MAPPED_FILE* pmapped_file)
 	if (pmapped_file->mapping == INVALID_HANDLE_VALUE) 
 	{ 
 		CloseHandle(pmapped_file->file);
-		return ERROR_COULD_NOT_MAP_FILE;
+		return 0;
 	}
 
 	pmapped_file->data = (unsigned char*) MapViewOfFile(pmapped_file->mapping, FILE_MAP_READ, 0, 0, 0);
@@ -71,10 +71,10 @@ int map_file(const char* file_path, MAPPED_FILE* pmapped_file)
 	{
 		CloseHandle(pmapped_file->mapping);
 		CloseHandle(pmapped_file->file);
-		return ERROR_COULD_NOT_MAP_FILE;
+		return 0;
 	}
 
-	return ERROR_SUCCESS;
+	return 1;
 }
 
 void unmap_file(MAPPED_FILE* pmapped_file)
@@ -95,25 +95,21 @@ int map_file(const char* file_path, MAPPED_FILE* pmapped_file)
 	struct stat fstat;
 
 	if (file_path == NULL)
-		return ERROR_INVALID_ARGUMENT;
-		
-	if (stat(file_path,&fstat) != 0 || S_ISDIR(fstat.st_mode)) 
-	{
-	    return ERROR_COULD_NOT_OPEN_FILE;
-	}
+		return 0;
  
 	pmapped_file->file = open(file_path, O_RDONLY);
 	
 	if (pmapped_file->file == -1) 
 	{ 
-		return ERROR_COULD_NOT_OPEN_FILE;
+		return 0;
 	}
 
+	stat(file_path, &fstat);
 	pmapped_file->size = fstat.st_size;
 
 	if (pmapped_file->size == 0)
 	{
-		return ERROR_ZERO_LENGTH_FILE;
+		return 0;
 	}
 	
 	pmapped_file->data = (unsigned char*) mmap(0, pmapped_file->size, PROT_READ, MAP_PRIVATE, pmapped_file->file, 0);
@@ -121,10 +117,10 @@ int map_file(const char* file_path, MAPPED_FILE* pmapped_file)
 	if (pmapped_file->data == NULL)
 	{
 		close(pmapped_file->file);
-		return ERROR_COULD_NOT_MAP_FILE;
+		return 0;
 	}
 
-	return ERROR_SUCCESS;
+	return 1;
 }
 
 void unmap_file(MAPPED_FILE* pmapped_file)

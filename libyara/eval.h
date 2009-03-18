@@ -21,18 +21,15 @@ GNU General Public License for more details.
 
 typedef struct _EVALUATION_CONTEXT
 {
-    unsigned char* data;
 	unsigned int file_size;
 	unsigned int entry_point;
-
     RULE* rule;
-    STRING* current_string;
 
 } EVALUATION_CONTEXT;
 
 
 
-int evaluate(TERM* term, EVALUATION_CONTEXT* context);
+unsigned int evaluate(TERM* term, EVALUATION_CONTEXT* context);
 
 #endif
 

@@ -14,15 +14,25 @@ GNU General Public License for more details.
 
 */
 
-#ifndef _MEM_H 
-#define _MEM_H
+#ifndef _COMPILE_H
+#define _COMPILE_H
 
-void yr_heap_alloc();
-void yr_heap_free();
-void* yr_malloc(size_t size);
-void yr_free(void *ptr);
-char* yr_strdup(const char *s);
+#include "ast.h"
+
+extern int line_number;
+extern const char* file_name;
+extern RULE_LIST* rule_list;
+
+extern FILE *yyin;
+extern int yydebug;
+
+
+int yylex (void); 
+int yyparse (void); 
+
 
 #endif
+
+
 
 

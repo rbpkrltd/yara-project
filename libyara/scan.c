@@ -24,8 +24,6 @@ GNU General Public License for more details.
 #include "ast.h"
 #include "pefile.h"
 #include "error.h"
-#include "mem.h"
-#include "eval.h"
 
 #ifndef TRUE
 #define TRUE 1
@@ -35,20 +33,17 @@ GNU General Public License for more details.
 #define FALSE 0
 #endif
 
-#ifdef WIN32
-#define inline __inline
-#endif
-
 
 /* Function implementations */
 
-inline int compare(char* str1, char* str2, int len)
+
+int compare(char* str1, char* str2, int len)
 {
 	char* s1 = str1;
 	char* s2 = str2;
 	int i = 0;
 	
-	while (i < len && *s1++ == *s2++) 
+	while (*s1++ == *s2++ && i < len) 
 	{
 	    i++;
     }
@@ -56,28 +51,25 @@ inline int compare(char* str1, char* str2, int len)
 	return ((i==len) ? i : 0);
 }
 
-inline int icompare(char* str1, char* str2, int len)
+int icompare(char* str1, char* str2, int len)
 {
 	char* s1 = str1;
 	char* s2 = str2;
 	int i = 0;
 	
-	while (i < len && tolower(*s1++) == tolower(*s2++)) 
-	{
-	    i++;
-    }
+	while (tolower(*s1++) == tolower(*s2++) && i < len) i++;
 	
 	return ((i==len) ? i : 0);
 }
 
 
-inline int wcompare(char* str1, char* str2, int len)
+int wcompare(char* str1, char* str2, int len)
 {
 	char* s1 = str1;
 	char* s2 = str2;
 	int i = 0;
 
-	while (i < len && *s1 == *s2) 
+	while (*s1 == *s2 && i < len) 
 	{
 		s1++;
 		s2+=2;
@@ -87,13 +79,13 @@ inline int wcompare(char* str1, char* str2, int len)
 	return ((i==len) ? i * 2 : 0);
 }
 
-inline int wicompare(char* str1, char* str2, int len)
+int wicompare(char* str1, char* str2, int len)
 {
 	char* s1 = str1;
 	char* s2 = str2;
 	int i = 0;
 
-	while (i < len && tolower(*s1) == tolower(*s2)) 
+	while (tolower(*s1) == tolower(*s2) && i < len) 
 	{
 		s1++;
 		s2+=2;
@@ -110,17 +102,14 @@ int hex_match(unsigned char* buffer, unsigned int buffer_size, unsigned char* pa
 	unsigned char i;
 	unsigned char distance;
 	unsigned char delta;
-    int match;
-    int match_length;
-    int longest_match;
 	int matches;
-    int tmp, tmp_b;
+	int tmp;
 	
 	b = 0;
 	p = 0;
 	m = 0;
 	
-	matches = 0;	
+	matches = 0;
 	
 	while (b < (size_t) buffer_size && p < (size_t) pattern_length)
 	{
@@ -140,17 +129,10 @@ int hex_match(unsigned char* buffer, unsigned int buffer_size, unsigned char* pa
 			matches += distance;
 			
             i = 0;
-                        
+            
             while (i <= delta && b + i < buffer_size)
             {
-                if ((buffer[b + i] & mask[m]) == pattern[p])
-                {
-       			    tmp = hex_match(buffer + b + i, buffer_size - b - i,  pattern + p, pattern_length - p, mask + m);
-       			}
-       			else
-       			{
-                    tmp = 0;
-       			}
+       			tmp = hex_match(buffer + b + i, buffer_size - b - i,  pattern + p, pattern_length - p, mask + m);
 				
 			    if (tmp > 0) 
 					return b + i + tmp;
@@ -159,54 +141,6 @@ int hex_match(unsigned char* buffer, unsigned int buffer_size, unsigned char* pa
             }
 			
 			break;	
-		}
-		else if (mask[m] == MASK_OR)
-		{		    
-            longest_match = 0;
-            		    
-		    while (mask[m] != MASK_OR_END)
-		    {
-                tmp_b = b;
-                match = TRUE;
-                match_length = 0;
-                m++;
-		        
-		        while (mask[m] != MASK_OR && mask[m] != MASK_OR_END)
-                {
-                    if ((buffer[tmp_b] & mask[m]) != pattern[p])
-                    {
-                        match = FALSE;
-                    }
-                    
-                    if (match)
-                    {
-                        match_length++;
-                    }
-                
-                    tmp_b++;
-                    m++;
-                    p++;                    
-                }
-		        
-		        if (match && match_length > longest_match)
-		        {
-                    longest_match = match_length;
-		        }	     
-		    }
-		    
-            m++;
-		    
-		    if (longest_match > 0)
-		    {
-                b += longest_match;
-                matches += longest_match;
-            }
-            else
-            {
-                matches = 0;
-                break;
-            }
-    
 		}
 		else if ((buffer[b] & mask[m]) == pattern[p])
 		{
@@ -230,7 +164,7 @@ int hex_match(unsigned char* buffer, unsigned int buffer_size, unsigned char* pa
 	return matches;
 }
 
-int regexp_match(unsigned char* buffer, unsigned int buffer_size, unsigned char* pattern, int pattern_length, REGEXP re, int file_beginning)
+int regexp_match(unsigned char* buffer, unsigned int buffer_size, unsigned char* pattern, int pattern_length, REGEXP re, int negative_size)
 {
 	int ovector[3];
 	unsigned int len;
@@ -241,11 +175,11 @@ int regexp_match(unsigned char* buffer, unsigned int buffer_size, unsigned char*
 	result = 0;
 	
 	/* 
-		if we are not at the beginning of the file, and the pattern 
-		begins with ^, the string doesn't match
+		negative_size > 0 indicates that we are not at the beginning of the file, 
+		therefore if pattern begins with ^ the string doesn't match
 	*/
 	
-	if (file_beginning && pattern[0] == '^')
+	if (negative_size > 0 && pattern[0] == '^')
 	{
 		return 0;
 	}
@@ -281,6 +215,96 @@ int regexp_match(unsigned char* buffer, unsigned int buffer_size, unsigned char*
 	return 0;
 }
 
+int init_hash_table(RULE_LIST* rule_list)
+{
+	RULE* rule;
+	STRING* string;
+	STRING_LIST_ENTRY* entry;
+	unsigned char x,y;
+	int next;
+    char hashable;
+		
+	rule = rule_list->head;
+	
+	while (rule != NULL)
+	{
+		string = rule->string_list_head;
+
+		while (string != NULL)
+		{	        
+			if (string->flags & STRING_FLAGS_REGEXP)
+			{	
+				/* take into account anchors (^) at beginning of regular expressions */
+							
+				if (string->string[0] == '^')
+				{
+				    if (string->length > 2)
+				    {
+					    x = string->string[1];
+					    y = string->string[2];
+					}
+					else
+					{
+                        x = 0;
+                        y = 0; 
+					}
+				}
+				else
+				{
+					x = string->string[0];
+					y = string->string[1];
+				}
+			
+                hashable = isalnum(x) && isalnum(y);
+			}
+			else
+			{
+			    x = string->string[0];
+				y = string->string[1];
+				
+				hashable = TRUE;
+				
+			} /* if (string->flags & STRING_FLAGS_REGEXP) */
+			
+			if (string->flags & STRING_FLAGS_HEXADECIMAL)
+			{
+			    hashable = (string->mask[0] == 0xFF) && (string->mask[1] == 0xFF);
+			}
+			
+			if (hashable && string->flags & STRING_FLAGS_NO_CASE)
+			{	
+				x = tolower(x);
+				y = tolower(y);
+			}
+			
+			entry = (STRING_LIST_ENTRY*) malloc(sizeof(STRING_LIST_ENTRY));
+			
+			if (entry == NULL)
+			{
+			    return ERROR_INSUFICIENT_MEMORY;
+			}
+			
+			entry->string = string;
+			
+			if (hashable)
+			{			
+    			entry->next = rule_list->hash_table[x][y];  /* insert new entry at begining of list */
+    			rule_list->hash_table[x][y] = entry;
+			}
+			else
+			{
+                entry->next = rule_list->non_hashed_strings;
+                rule_list->non_hashed_strings = entry;
+			}	
+		
+			string = string->next;
+		}
+		
+		rule = rule->next;
+	}
+	
+	return ERROR_SUCCESS;
+}
 
 void free_hash_table(RULE_LIST* rule_list)
 {
@@ -297,7 +321,7 @@ void free_hash_table(RULE_LIST* rule_list)
 			while (entry != NULL)
 			{
 				next_entry = entry->next;
-				yr_free(entry);
+				free(entry);
 				entry = next_entry;
 			}
 			
@@ -310,7 +334,7 @@ void free_hash_table(RULE_LIST* rule_list)
     while (entry != NULL)
 	{
 		next_entry = entry->next;
-		yr_free(entry);
+		free(entry);
 		entry = next_entry;
 	}
 	
@@ -340,7 +364,7 @@ void clear_marks(RULE_LIST* rule_list)
 			while (match != NULL)
 			{
 				next_match = match->next;
-				yr_free(match);
+				free(match);
 				match = next_match;
 			}
 			
@@ -352,7 +376,7 @@ void clear_marks(RULE_LIST* rule_list)
 	}
 }
 
-int string_match(unsigned char* buffer, unsigned int buffer_size, STRING* string, int flags, int negative_size)
+int string_match(unsigned char* buffer, unsigned int buffer_size, STRING* string, int negative_size)
 {
 	int match;
 	int i, len;
@@ -374,10 +398,19 @@ int string_match(unsigned char* buffer, unsigned int buffer_size, STRING* string
 			{
 				i += 2;
 			}
-						
-			len = i/2;
-			tmp = yr_malloc(len);
-            i = 0;
+			
+			if (negative_size > 2 && buffer[-1] == 0 && isalnum(buffer[-2]))
+			{
+				len = i/2 + 1;
+				tmp = malloc(len);
+				i = -1;
+			}
+			else
+			{
+				len = i/2;
+				tmp = malloc(len);
+				i = 0;
+			}
 			
 			if (tmp != NULL)
 			{						
@@ -387,9 +420,9 @@ int string_match(unsigned char* buffer, unsigned int buffer_size, STRING* string
 					i++;
 				}
 								
-				match = regexp_match(tmp, len, string->string, string->length, string->re, (negative_size > 2));
+				match = regexp_match(tmp, len, string->string, string->length, string->re, (negative_size > 2) ? 1 : 0);
 			
-				yr_free(tmp);			
+				free(tmp);			
 				return match * 2;
 			}
 			
@@ -399,8 +432,7 @@ int string_match(unsigned char* buffer, unsigned int buffer_size, STRING* string
 			return regexp_match(buffer, buffer_size, string->string, string->length, string->re, negative_size);
 		}
 	}
-	
-	if ((flags & STRING_FLAGS_WIDE) && IS_WIDE(string) && string->length * 2 <= buffer_size)
+	else if (IS_WIDE(string) && string->length * 2 <= buffer_size)
 	{	
 		if(IS_NO_CASE(string))
 		{
@@ -432,13 +464,11 @@ int string_match(unsigned char* buffer, unsigned int buffer_size, STRING* string
 					match = 0;
 				}
 			}
-		}	
+		}
 		
-		if (match > 0)
-            return match;
+		return match;		
 	}
-	
-	if ((flags & STRING_FLAGS_ASCII) && IS_ASCII(string) && string->length <= buffer_size)
+	else if (string->length <= buffer_size)
 	{		
 		if(IS_NO_CASE(string))
 		{
@@ -472,7 +502,8 @@ int find_matches_for_strings(   STRING_LIST_ENTRY* first_string,
                                 unsigned char* buffer, 
                                 unsigned int buffer_size,
                                 unsigned int current_file_offset,
-                                int flags, 
+                                int wide, 
+                                int no_case,
                                 int negative_size)
 {
 	int len;
@@ -486,10 +517,11 @@ int find_matches_for_strings(   STRING_LIST_ENTRY* first_string,
 	{	
 		string = entry->string;
 
-		if ( (string->flags & flags) && (len = string_match(buffer, buffer_size, string, flags, negative_size)))
+		if ((!wide || IS_WIDE(string)) && 
+		    (!no_case || IS_NO_CASE(string)) &&
+		    (len = string_match(buffer, buffer_size, string, negative_size)))
 		{
-		    /*  
-		        If this string already matched we must check that this match is not 
+		    /*  If this string already matched we must check that this match is not 
 		        overlapping a previous one. This can occur for example if we search 
 		        for the string 'aa' and the file contains 'aaaaaa'. 
 		     */
@@ -507,7 +539,6 @@ int find_matches_for_strings(   STRING_LIST_ENTRY* first_string,
                         overlap = TRUE;
                         break;
                     }
-                    
                     match = match->next;
                 }
 		    }
@@ -515,7 +546,7 @@ int find_matches_for_strings(   STRING_LIST_ENTRY* first_string,
 		    if (!overlap)
 		    {		    
     			string->flags |= STRING_FLAGS_FOUND;
-    			match = (MATCH*) yr_malloc(sizeof(MATCH));
+    			match = (MATCH*) malloc(sizeof(MATCH));
 
     			if (match != NULL)
     			{
@@ -543,18 +574,23 @@ int find_matches(	unsigned char first_char,
 					unsigned char* buffer, 
 					unsigned int buffer_size, 
 					unsigned int current_file_offset,
-					int flags,
+					int wide,
 					int negative_size, 
 					RULE_LIST* rule_list)
 {
+	unsigned char first_char_lower;
+	unsigned char second_char_lower;
 	
     int result;
-    	
+	
+	/* case sensitive */
+
     result =  find_matches_for_strings(  rule_list->hash_table[first_char][second_char], 
                                         buffer, 
                                         buffer_size, 
                                         current_file_offset, 
-                                        flags, 
+                                        wide, 
+                                        FALSE,
                                         negative_size);
     
     if (result == ERROR_SUCCESS)
@@ -563,13 +599,126 @@ int find_matches(	unsigned char first_char,
                                                buffer, 
                                                buffer_size, 
                                                current_file_offset, 
-                                               flags, 
+                                               wide, 
+                                               FALSE,
                                                negative_size);
-    }
-            	
+     }
+            
+	/* case insensitive */
+	
+	first_char_lower = tolower(first_char);
+	second_char_lower = tolower(second_char);
+	
+	if (result == ERROR_SUCCESS && (first_char_lower != first_char || second_char_lower != second_char))
+	{
+            result = find_matches_for_strings(    rule_list->hash_table[first_char_lower][second_char_lower], 
+	                                           buffer, 
+	                                           buffer_size, 
+	                                           current_file_offset, 
+	                                           wide, 
+                                               TRUE,
+	                                           negative_size);
+	                                           
+            if (result == ERROR_SUCCESS)
+            {
+                result = find_matches_for_strings(    rule_list->non_hashed_strings, 
+                                                      buffer, 
+                                                      buffer_size, 
+                                                      current_file_offset, 
+                                                      wide, 
+                                                      TRUE,
+                                                      negative_size);
+            }
+	}
+	
 	return result;
 }
 
+int scan_mem(unsigned char* buffer, unsigned int buffer_size, RULE_LIST* rule_list, YARACALLBACK callback, void* user_data)
+{
+    int error;
+	unsigned int i;	
+	int file_is_pe;
+	
+	RULE* rule;
+	EVALUATION_CONTEXT context;
+	
+	context.file_size = buffer_size;
+	
+	file_is_pe = is_pe(buffer, buffer_size);
+	
+	if (file_is_pe)
+	{
+		context.entry_point = get_entry_point_offset(buffer, buffer_size);
+	}
+	
+	clear_marks(rule_list);
+	
+	for (i = 0; i < buffer_size - 1; i++)
+	{		    
+		/* search for normal strings */	
+        error = find_matches(buffer[i], buffer[i + 1], buffer + i, buffer_size - i, i, FALSE, i, rule_list);
+		
+		if (error != ERROR_SUCCESS)
+		    return error;
+		
+		/* search for wide strings */
+		if (i < buffer_size - 3 && buffer[i + 1] == 0 && buffer[i + 3] == 0)
+		{
+			error = find_matches(buffer[i], buffer[i + 2], buffer + i, buffer_size - i, i, TRUE, i, rule_list);
+			
+			if (error != ERROR_SUCCESS)
+    		    return error;
+		}	
+	}
 
+	rule = rule_list->head;
+	
+	while (rule != NULL)
+	{
+		/* skip privates rules, or rules expecting PE files if the file is not a PE */
+		
+		if ((rule->flags & RULE_FLAGS_PRIVATE) || 
+			((rule->flags & RULE_FLAGS_REQUIRE_PE_FILE) && !file_is_pe))  
+		{
+			rule = rule->next;
+			continue;
+		}
+	 
+        context.rule = rule;
+	 
+		if (evaluate(rule->condition, &context))
+		{
+            rule->flags |= RULE_FLAGS_MATCH;
+		}
+		
+		if (callback(rule, buffer, buffer_size, user_data) != 0)
+		{
+            return ERROR_CALLBACK_ERROR;
+		}
+		
+		rule = rule->next;
+	}
+	
+	return ERROR_SUCCESS;
+}
+
+int scan_file(const char* file_path, RULE_LIST* rule_list, YARACALLBACK callback, void* user_data)
+{
+	MAPPED_FILE mfile;
+	int result = ERROR_SUCCESS;
+	
+	if (map_file(file_path, &mfile))
+	{
+		result = scan_mem(mfile.data, (unsigned int) mfile.size, rule_list, callback, user_data);		
+		unmap_file(&mfile);
+	}
+	else
+	{
+		result = ERROR_COULD_NOT_OPEN_FILE;
+	}
+		
+	return result;
+}
 
 
