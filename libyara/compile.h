@@ -14,20 +14,25 @@ GNU General Public License for more details.
 
 */
 
-#ifndef _SIZEDSTR_H
-#define _SIZEDSTR_H
+#ifndef _COMPILE_H
+#define _COMPILE_H
 
-//
-// This struct is used to support strings containing null chars. The length of 
-// the string is stored along the string data. However the string data is also
-// terminated with a null char.
-//
+#include "ast.h"
 
-typedef struct _SIZED_STRING
-{
-    int length;
-    char c_string[1];  
-    
-} SIZED_STRING;
+extern int line_number;
+extern const char* file_name;
+extern RULE_LIST* rule_list;
+
+extern FILE *yyin;
+extern int yydebug;
+
+
+int yylex (void); 
+int yyparse (void); 
+
 
 #endif
+
+
+
+

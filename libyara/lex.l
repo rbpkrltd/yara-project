@@ -6,61 +6,22 @@
 #include <stdio.h>
 #include <string.h>
 #include "grammar.h"
+#include "compile.h"
 #include "error.h"
 #include "xtoi.h"
-#include "mem.h"
-#include "sizedstr.h"
-#include "yara.h"
 
-int             line_number;
-const char*     file_name;
-RULE_LIST*      rule_list;
+char string_buf[255];
+char *string_buf_ptr;
 
-char 			string_buf[256];
-char*			string_buf_ptr;
-unsigned 		short string_buf_len;
-
-
-int parse_string(const char* string, RULE_LIST* rules)
-{
-	YY_BUFFER_STATE state;
-
-	rule_list = rules;	
-
-	state = yy_scan_string(string);
-
-	yyparse();
-
-	yy_delete_buffer(state);
-
-	return yynerrs;
-}
-
-int parse_file(FILE* rules_file, RULE_LIST* rules)
-{	
-	rule_list = rules;	
-	yyin = rules_file;
-
-	if (yyin != NULL)
-	{
-		//yydebug = 1;	
-		line_number = 1;		
-		yyparse();	
-	}
-		
-	return yynerrs;
-}
-
-
-
-
+#ifdef WIN32
+#define strdup _strdup
+#endif
 
 %}
 
 %option noyywrap
 
 %x str
-%x regexp
 
 digit         [0-9]
 letter        [a-zA-Z]
@@ -78,10 +39,10 @@ hexdigit      [a-fA-F0-9]
 "global"             { return _GLOBAL_;     }
 "rule"               { return _RULE_;       }
 "strings"            { return _STRINGS_;    }
-"ascii"              { return _ASCII_;      }
-"wide"               { return _WIDE_;       }
+"widechar"           { return _WIDE_;       }
 "fullword"           { return _FULLWORD_;   }
 "nocase"             { return _NOCASE_;     }
+"regexp"             { return _REGEXP_;     }
 "condition"          { return _CONDITION_;  }
 "true"               { return _TRUE_;       }
 "false"              { return _FALSE_;      }
@@ -91,10 +52,6 @@ hexdigit      [a-fA-F0-9]
 "at"                 { return _AT_;         }
 "in"                 { return _IN_;         }
 "of"                 { return _OF_;         }
-"them"				 { return _THEM_;		}
-"for"				 { return _FOR_;        }
-"all"				 { return _ALL_;		}
-"any"				 { return _ANY_;		}
 "entrypoint"         { return _ENTRYPOINT_; }
 "filesize"			 { return _SIZE_;       }
 "rva"			     { return _RVA_;   	    }
@@ -102,13 +59,6 @@ hexdigit      [a-fA-F0-9]
 "file"				 { return _FILE_;       }
 "is"				 { return _IS_;         }
 "section"			 { return _SECTION_;    }
-"uint8"				 { return _UINT8_;    	}
-"uint16"			 { return _UINT16_;    	}
-"uint32"		 	 { return _UINT32_;    	}
-"int8"				 { return _INT8_;    	}
-"int16"				 { return _INT16_;    	}
-"int32"		 		 { return _INT32_;    	}
-
 
 
 "/*"([^\*]|\*[^\/])*"*/"    {	/* skip comments */
@@ -126,28 +76,16 @@ hexdigit      [a-fA-F0-9]
 
 								line_number++;
 							}
-							
-$({letter}|{digit}|_)*"*" {
-                       		yylval.c_string = (char*) yr_strdup(yytext);
-                       		return _STRING_IDENTIFIER_WITH_WILDCARD_;      
-					 	}
 
-$({letter}|{digit}|_)* {
-                       		yylval.c_string = (char*) yr_strdup(yytext);
+$({letter}|{digit})* {
+                       		yylval.pchar = (char*) strdup(yytext);
                        		return _STRING_IDENTIFIER_;      
 					 }
-				
 					
-#({letter}|{digit}|_)* {	
-                       		yylval.c_string = (char*) yr_strdup(yytext);
-							yylval.c_string[0] = '$'; 					/* replace # by $*/
+#({letter}|{digit})* {	
+                       		yylval.pchar = (char*) strdup(yytext);
+							yylval.pchar[0] = '$'; 					/* replace # by $*/
 		                    return _STRING_COUNT_;      
-					 }
-					
-@({letter}|{digit}|_)* {	
-	                      	yylval.c_string = (char*) yr_strdup(yytext);
-							yylval.c_string[0] = '$'; 					/* replace @ by $*/
-		                    return _STRING_OFFSET_;      
 					 }					
 
 ({letter}|_)({letter}|{digit}|_)*	{ 
@@ -157,7 +95,7 @@ $({letter}|{digit}|_)* {
 											yynerrs++;
 										}
 										
-										yylval.c_string = (char*) yr_strdup(yytext);
+										yylval.pchar = (char*) strdup(yytext);
                    						return _IDENTIFIER_;
 									}
 							
@@ -181,52 +119,49 @@ $({letter}|{digit}|_)* {
 						return _NUMBER_;
 					}
 	
+	
+\"     				{
+ 						string_buf_ptr = string_buf; 
+						BEGIN(str);
+					}
+
 <str>\"        		{ 	/* saw closing quote - all done */
 
-						SIZED_STRING* s;
-
-						if (string_buf_len == 0)
-						{
-							yyerror("empty string");
-							yynerrs++;
-						}
-
-						*string_buf_ptr = '\0';
+						int len;
 
 						BEGIN(INITIAL);
+						*string_buf_ptr = '\0';
 						
-						s = (SIZED_STRING*) yr_malloc(string_buf_len + sizeof(SIZED_STRING));
+						len = strlen(string_buf);
 						
-						s->length = string_buf_len;
+						yylval.pchar = strdup(string_buf);
 						
-						strcpy(s->c_string, string_buf);
-					
-						yylval.sized_string = s;
-												
 						return _TEXTSTRING_;
 			  		}
 
-<str>\\t  			{ *string_buf_ptr++ = '\t'; string_buf_len++; }
-<str>\\\"  			{ *string_buf_ptr++ = '\"'; string_buf_len++; }
-<str>\\\\  			{ *string_buf_ptr++ = '\\'; string_buf_len++; }
+<str>\\t  			*string_buf_ptr++ = '\t';
+<str>\\\"  			*string_buf_ptr++ = '\"';
+<str>\\\\  			*string_buf_ptr++ = '\\';
 
 <str>\\x{hexdigit}{2}   	{
         						int result;
 
         						sscanf( yytext + 2, "%x", &result );
+
+								if (result == 0)
+								{
+									yyerror("illegal escape sequence");
+									yynerrs++;
+								}
                 					
         						*string_buf_ptr++ = result;
-								string_buf_len++;
         					}
 
 <str>[^\\\n\"]+      {
 						char *yptr = yytext;
 
 						while ( *yptr )
-						{
         					*string_buf_ptr++ = *yptr++;
-							string_buf_len++;
-						}
 					 }
 
 <str>\n  		    {
@@ -239,83 +174,11 @@ $({letter}|{digit}|_)* {
 						yyerror("illegal escape sequence");
 						yynerrs++;
 					}
-
-					
-<regexp>"/"         { 	
-						SIZED_STRING* s;
-
-						if (string_buf_len == 0)
-						{
-							yyerror("empty regular expression");
-							yynerrs++;
-						}
-
-						*string_buf_ptr = '\0';
-
-						BEGIN(INITIAL);
-
-						s = (SIZED_STRING*) yr_malloc(string_buf_len + sizeof(SIZED_STRING));
-
-						s->length = string_buf_len;
-
-						strcpy(s->c_string, string_buf);
-					
-						yylval.sized_string = s;
-
-						return _REGEXP_;
-			  		}
-			
-<regexp>\\\/		{ 				
-						*string_buf_ptr++ = '/';
-						string_buf_len++ ;
-					}
-
-<regexp>\\.			{ 				
-						*string_buf_ptr++ = yytext[0];
-						*string_buf_ptr++ = yytext[1];
-						string_buf_len += 2;
-					}
-
-<regexp>[^/\n\\]+    {
-						char *yptr = yytext;
-
-						while ( *yptr )
-						{
-        					*string_buf_ptr++ = *yptr++;
-							string_buf_len++;
-						}
-					 }
-
-<regexp>\n  		{
-						yyerror("unterminated regular expression");
-						yyterminate();
-						yynerrs++;
-					}
-					
-\"     				{
- 						string_buf_ptr = string_buf; 
-						string_buf_len = 0;
-						BEGIN(str);
-					}
-			
-"/"     			{
- 						string_buf_ptr = string_buf; 
-						string_buf_len = 0;
-						BEGIN(regexp);
-					}
 					
 					
-\{({hexdigit}|[ \-|\?\[\]\(\)])+\}		{ 
-										int len = strlen(yytext);
-										
-										SIZED_STRING* s = (SIZED_STRING*) yr_malloc(len + sizeof(SIZED_STRING));
-
-										s->length = len;
-
-										strcpy(s->c_string, yytext);
-
-										yylval.sized_string = s;
-									
+					
+\{({hexdigit}|[ \?\[\]-])+\}		{ 
+										yylval.pchar = (char*) strdup(yytext);
 										return _HEXSTRING_;
 									}
 					
@@ -331,7 +194,5 @@ $({letter}|{digit}|_)* {
                        	return yytext[0];    
 					}
 %%
-
-
 
 

@@ -35,35 +35,21 @@ GNU General Public License for more details.
 int recursive_search = FALSE;
 int show_tags = FALSE;
 int show_specified_tags = FALSE;
-int show_specified_rules = FALSE;
 int show_strings = FALSE;
-int negate = FALSE;
-
-TAG* specified_tags_list = NULL;
-
-typedef struct _IDENTIFIER
-{
-	char*			name;
-	struct _IDENTIFIER*	next;
-	
-} IDENTIFIER;
-
-IDENTIFIER* specified_rules_list = NULL;
+TAG* specified_tag_list = NULL;
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 void show_help()
 {
-    printf("usage:  yara [ -t tag ] [ -i identifier ] [ -n ] [ -g ] [ -s ] [ -r ] [ -v ] [RULEFILE...] FILE\n");
+    printf("usage:  yara [ -t tag ] [ -g ] [ -s ] [ -r ] [ -v ] [RULEFILE...] FILE\n");
     printf("options:\n");
-	printf("  -t <tag>          print rules tagged as <tag> and ignore the rest. Can be used more than once.\n");
-    printf("  -i <identifier>   print rules named <identifier> and ignore the rest. Can be used more than once.\n");
-	printf("  -n                print only not satisfied rules (negate).\n");
-	printf("  -g                print tags.\n");
-	printf("  -s                print matching strings.\n");
-    printf("  -r                recursively search directories.\n");
-	printf("  -v                show version information.\n");
+	printf("  -t <tag>          Display rules tagged as <tag> and ignore the rest. This option can be used more than once.\n");
+	printf("  -g                Display tags.\n");
+	printf("  -s                Display strings.\n");
+	printf("  -r                Recursively search directories.\n");
+	printf("  -v                Show version information.\n");
 	printf("\nReport bugs to: <%s>\n", PACKAGE_BUGREPORT);
 }
 
@@ -105,7 +91,7 @@ void scan_dir(const char* dir, int recursive, RULE_LIST* rules, YARACALLBACK cal
 			if (!(FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
 			{
 				//printf("Processing %s...\n", FindFileData.cFileName);
-				yr_scan_file(full_path, rules, callback, full_path);
+				scan_file(full_path, rules, callback, full_path);
 			}
 			else if (recursive && FindFileData.cFileName[0] != '.' )
 			{
@@ -156,7 +142,7 @@ void scan_dir(const char* dir, int recursive, RULE_LIST* rules, YARACALLBACK cal
 				if(S_ISREG(st.st_mode))
 				{
 					//printf("Processing %s\n", de->d_name);		
-					yr_scan_file(full_path, rules, callback, full_path);
+					scan_file(full_path, rules, callback, full_path);
 				}
 				else if(recursive && S_ISDIR(st.st_mode) && de->d_name[0] != '.')
 				{
@@ -174,60 +160,36 @@ void scan_dir(const char* dir, int recursive, RULE_LIST* rules, YARACALLBACK cal
 
 #endif
 
-void print_string(unsigned char* buffer, unsigned int buffer_size, unsigned int offset, unsigned int length, int unicode)
+void print_string(unsigned char* buffer, unsigned int buffer_size, unsigned int offset, unsigned int length)
 {
-	int i;
-	char* str;
+	int i = offset;
+	int len = 0;
+	char* tmp;
+		
+	tmp = malloc(length + 1);
 	
-    str = (char*) (buffer + offset);
+	memcpy(tmp, buffer + offset, length);
 	
-    for (i = 0; i < length; i++)
-    {
-        if (str[i] >= 32 && str[i] <= 126)
-        {
-            printf("%c",str[i]);
-        }
-        else
-        {
-            printf("\\x%02x", str[i]);
-        }
-        
-        if (unicode) i++;
-    }
-
-	printf("\n");
-}
-
-void print_hex_string(unsigned char* buffer, unsigned int buffer_size, unsigned int offset, unsigned int length)
-{
-	int i;
-	unsigned char* str;
+	tmp[length] = 0;
 	
-    str = (unsigned char*) (buffer + offset);
+	printf("%s\n", tmp);
 	
-    for (i = 0; i < length; i++)
-    {
-        printf("%02X ", str[i]);
-    }
-
-	printf("\n");
+	free(tmp);
+	
 }
 
 int callback(RULE* rule, unsigned char* buffer, unsigned int buffer_size, void* data)
 {
 	TAG* tag;
-    IDENTIFIER* identifier;
 	STRING* string;
 	MATCH* match;
 	
-    int rule_match;
-    int string_found;
 	int show = TRUE;
 		
 	if (show_specified_tags)
 	{
 		show = FALSE;
-		tag = specified_tags_list;
+		tag = specified_tag_list;
 		
 		while (tag != NULL)
 		{
@@ -240,27 +202,6 @@ int callback(RULE* rule, unsigned char* buffer, unsigned int buffer_size, void* 
 			tag = tag->next;
 		}
 	}
-	
-	if (show_specified_rules)
-	{
-		show = FALSE;
-		identifier = specified_rules_list;
-		
-		while (identifier != NULL)
-		{
-            if (strcmp(identifier->name, rule->identifier) == 0)
-            {
-                show = TRUE;
-                break;
-            }
-			
-			identifier = identifier->next;
-		}
-	}
-	
-    rule_match = (rule->flags & RULE_FLAGS_MATCH);
-	
-    show = show && ((!negate && rule_match) || (negate && !rule_match));
 	
 	if (show)
 	{
@@ -299,17 +240,13 @@ int callback(RULE* rule, unsigned char* buffer, unsigned int buffer_size, void* 
 			printf("%s   %s\n", rule->identifier, (char*) data);
 		}
 		
-		/* show matched strings */
-		
 		if (show_strings)
 		{
 			string = rule->string_list_head;
 
 			while (string != NULL)
 			{
-                string_found = string->flags & STRING_FLAGS_FOUND;
-			    
-				if (string_found)
+				if (string->flags & STRING_FLAGS_FOUND)
 				{
 					match = string->matches;
 
@@ -319,15 +256,17 @@ int callback(RULE* rule, unsigned char* buffer, unsigned int buffer_size, void* 
 						
 						if (IS_HEX(string))
 						{
-							print_hex_string(buffer, buffer_size, match->offset, match->length);
+							//TODO: print_hex_string()
+							printf("\n");
 						}
 						else if (IS_WIDE(string))
 						{
-							print_string(buffer, buffer_size, match->offset, match->length, TRUE);
+							//TODO: print_wide_string()
+							printf("\n");
 						}
 						else
 						{
-							print_string(buffer, buffer_size, match->offset, match->length, FALSE);
+							print_string(buffer, buffer_size, match->offset, match->length);
 						}
 						
 						match = match->next;
@@ -346,10 +285,9 @@ int process_cmd_line(int argc, char const* argv[])
 {
 	char c;	
 	TAG* tag;
-    IDENTIFIER* identifier;
 	opterr = 0;
  
-	while ((c = getopt (argc, (char**) argv, "rnsvgt:i:")) != -1)
+	while ((c = getopt (argc, (char**) argv, "rsvgt:")) != -1)
 	{
 		switch (c)
 	    {
@@ -368,10 +306,6 @@ int process_cmd_line(int argc, char const* argv[])
 			case 's':
 				show_strings = TRUE;
 				break;
-			
-			case 'n':
-    			negate = TRUE;
-    			break;
 		
 		   	case 't':
 		
@@ -382,8 +316,8 @@ int process_cmd_line(int argc, char const* argv[])
 				if (tag != NULL)
 				{
 					tag->identifier = optarg;
-					tag->next = specified_tags_list;
-					specified_tags_list = tag;
+					tag->next = specified_tag_list;
+					specified_tag_list = tag;
 				}
 				else
 				{
@@ -391,26 +325,6 @@ int process_cmd_line(int argc, char const* argv[])
 					return 0;
 				}
 	
-		        break;
-		        
-	       	case 'i':
-
-				show_specified_rules = TRUE;
-
-				identifier = malloc(sizeof(IDENTIFIER));	
-
-				if (identifier != NULL)
-				{
-					identifier->name = optarg;
-					identifier->next = specified_rules_list;
-					specified_rules_list = identifier;
-				}
-				else
-				{
-					fprintf (stderr, "Not enough memory.\n", optopt);
-					return 0;
-				}
-
 		        break;
 	
 		    case '?':
@@ -439,11 +353,6 @@ int process_cmd_line(int argc, char const* argv[])
 	
 }
 
-void report_error(const char* file_name, int line_number, const char* error_message)
-{
-    fprintf(stderr, "%s:%d: %s\n", file_name, line_number, error_message);
-}
-
 int main(int argc, char const* argv[])
 {
 	int i, errors;
@@ -463,14 +372,11 @@ int main(int argc, char const* argv[])
 		return 0;
 	}
 			
-    yr_init();
-			
-	rules = yr_alloc_rule_list();
+	rules = alloc_rule_list();
 	
 	if (rules == NULL) 
 		return 0;
-	
-	yr_set_report_function(report_error);	
+		
 			
 	for (i = optind; i < argc - 1; i++)
 	{
@@ -478,15 +384,15 @@ int main(int argc, char const* argv[])
 		
 		if (rule_file != NULL)
 		{
-			yr_set_file_name(argv[i]);
-			            			
-			errors = yr_compile_file(rule_file, rules);
+			set_file_name(argv[i]);
+			
+			errors = compile_rules(rule_file, rules);
 			
 			fclose(rule_file);
 			
 			if (errors > 0) /* errors during compilation */
 			{
-				yr_free_rule_list(rules);				
+				free_rule_list(rules);				
 				return 0;
 			}
 		}
@@ -498,18 +404,18 @@ int main(int argc, char const* argv[])
 	
 	if (optind == argc - 1)  /* no rule files, read rules from stdin */
 	{
-		yr_set_file_name("stdin");
+		set_file_name("stdin");
 		
-		errors = yr_compile_file(stdin, rules);
+		errors = compile_rules(stdin, rules);
 			
 		if (errors > 0) /* errors during compilation */
 		{
-			yr_free_rule_list(rules);				
+			free_rule_list(rules);				
 			return 0;
 		}		
 	}
 		
-	yr_prepare_rules(rules);
+	init_hash_table(rules);
 	
 	if (is_directory(argv[argc - 1]))
 	{
@@ -517,14 +423,15 @@ int main(int argc, char const* argv[])
 	}
 	else		
 	{
-		yr_scan_file(argv[argc - 1], rules, callback, (void*) argv[argc - 1]);
+		scan_file(argv[argc - 1], rules, callback, (void*) argv[argc - 1]);
 	}
 	
-	yr_free_rule_list(rules);
+	free_hash_table(rules);	
+	free_rule_list(rules);
 	
 	/* free tag list allocated by process_cmd_line */
 	
-	tag = specified_tags_list;
+	tag = specified_tag_list;
 	
 	while(tag != NULL)
 	{

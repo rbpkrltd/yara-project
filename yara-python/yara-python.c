@@ -23,59 +23,48 @@ GNU General Public License for more details.
 
 /* Module globals */
 
-static PyObject *YaraError = NULL;
-static PyObject *YaraSyntaxError = NULL;
-
+static PyObject *yara_error = NULL;
 
 static char* module_doc = "\
-This module allows you to apply YARA rules to files or strings.               \n\
-                                                                              \n\
-First of all your need to compile your YARA rules. The method \"compile\" can \n\
-receive a file path, a file object, or a string containing the rules.         \n\
-                                                                              \n\
-rules = yara.compile(filepath='/foo/bar/myrules')                             \n\
-rules = yara.compile('/foo/bar/myrules')                                      \n\
-                                                                              \n\
-f = open('/foo/bar/myrules')                                                  \n\
-rules = yara.compile(file=f)                                                  \n\
-f.close()                                                                     \n\
-                                                                              \n\
-rules = yara.compile(source='rule dummy { condition: true }')                 \n\
-                                                                              \n\
-This method returns an instance of the \"Rules\" class if the rules were      \n\
-compiled sucessfully, or raises an exception in other case.                   \n\
-                                                                              \n\
-The returned \"Rules\" object has a method \"match\" that allows you to apply \n\
-the rules to your data. This method can receive a file path or a string       \n\
-containing the data.                                                          \n\
-                                                                              \n\
-matches = rules.match(filepath='/foo/bar/myfile')                             \n\
-                                                                              \n\
-matches = rules.match('/foo/bar/myfile')                                      \n\
-                                                                              \n\
-f = fopen('/foo/bar/myfile', 'rb')                                            \n\
-matches = rules.match(data=f.read())                                          \n\
-                                                                              \n\
-The \"match\" method returns a list of instances of the class \"Match\". The  \n\
-instances of this class can be treated as text string containing the name of  \n\
-the matching YARA rule.                                                       \n\
-                                                                              \n\
-For example you can print them:                                               \n\
-                                                                              \n\
-foreach m in matches:                                                         \n\
-    print \"%s\" % m                                                          \n\
-                                                                              \n\
-In some circumstances you may need to explicitly convert the instance of      \n\
-\"Match\" to string, for example when comparing it with another string:       \n\
-                                                                              \n\
-if str(matches[0]) == 'SomeRuleName':                                         \n\
-    ...                                                                       \n\
-                                                                              \n\
-The \"Match\" class have another two attributes: \"tags\" and \"strings\". The\n\
-\"tags\" attribute is a list of strings containing the tags associated to the \n\
-rule. The \"strings\" attribute is a dictionary whose values are those strings\n\
-within the data that made the YARA rule match, and the keys are the offset    \n\
-where the associated string was found.                                        \n";
+This module allows you to apply YARA rules to files or strings. You will need to        \n\
+compile the YARA rules before applying them to your data:                               \n\
+                                                                                        \n\
+rules = yara.compile('/foo/bar/myrules')                                                \n\
+The method \"compile\" of this module returns an instance of the class \"Rules\", which \n\
+in turn has two methods: \"matchfile\" and \"match\". The first one applies the rules   \n\
+to a file given its path:                                                               \n\
+                                                                                        \n\
+matches = rules.matchfile('/foo/bar/myfile')                                            \n\
+                                                                                        \n\
+The second one applies the rules to a string:                                           \n\
+                                                                                        \n\
+f = fopen('/foo/bar/myfile', 'rb')                                                      \n\
+data = f.read()                                                                         \n\
+f.close()                                                                               \n\
+                                                                                        \n\
+matches = rules.match(data)                                                             \n\
+                                                                                        \n\
+Both methods return a list of instances of the class \"Match\". The instances of this   \n\
+class can be treated as text string containing the name of the matching YARA rule.      \n\
+For example you can print them:                                                         \n\
+                                                                                        \n\
+foreach m in matches:                                                                   \n\
+    print \"%s\" % m                                                                    \n\
+                                                                                        \n\
+In some circumstances you may need to explicitly convert the instance of \"Match\" to   \n\
+string, for example when comparing it with another string:                              \n\
+                                                                                        \n\
+if str(matches[0]) == 'SomeRuleName':                                                   \n\
+    ...                                                                                 \n\
+                                                                                        \n\
+The \"Match\" class have another two attributes: \"tags\" and \"strings\". The \"tags\" \n\
+attribute is a list of strings containing the tags associated to the rule. The          \n\
+\"strings\" attribute is a dictionary whose values are those strings within the data    \n\
+that made the YARA rule match, and the keys are the offset where the associated         \n\
+string was found.                                                                       \n";
+
+
+
 
 
 
@@ -170,7 +159,7 @@ static void Match_dealloc(PyObject *self)
      
     Py_DECREF(object->tags); 
     Py_DECREF(object->strings);
-    PyObject_Del(self);
+    PyObject_FREE(self);
 }
 
 static PyObject * Match_Repr(PyObject *self)
@@ -190,18 +179,21 @@ static PyObject * Match_getattro(PyObject *self, PyObject *name)
 typedef struct {
     
     PyObject_HEAD
+    char* filepath;
     RULE_LIST* rules;
 
 } Rules;
 
 
-static PyObject * Rules_match(PyObject *self, PyObject *args, PyObject *keywords);
+static PyObject * Rules_matchstring(PyObject *self, PyObject *args);
+static PyObject * Rules_matchfile(PyObject *self, PyObject *args);
 static PyObject * Rules_getattro(PyObject *self, PyObject *name);
 static void Rules_dealloc(PyObject *self);
 
 static PyMethodDef Rules_methods[] = 
 {
-  {"match", (PyCFunction) Rules_match, METH_VARARGS | METH_KEYWORDS},
+  {"match", Rules_matchstring, METH_VARARGS},
+  {"matchfile", Rules_matchfile, METH_VARARGS},
   {NULL, NULL},
 };
 
@@ -250,71 +242,44 @@ static PyTypeObject Rules_Type = {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-static PyObject * Rules_new_from_file(FILE* file)
+static PyObject * Rules_NEW(char* filepath)
 { 
+    FILE*  file;
     RULE_LIST* rules;
     Rules* object;
     int errors;
-
-    rules = yr_alloc_rule_list();
+    
+    rules = alloc_rule_list();
     
     if (rules == NULL)
     {
         return PyErr_NoMemory();
     }
+    
+    file = fopen(filepath, "r");
     
     if (file == NULL)
     {
-        yr_free_rule_list(rules);
+        free_rule_list(rules);
         return PyErr_SetFromErrno(PyExc_IOError);
     }
         
-    errors = yr_compile_file(file, rules);
-       
+    errors = compile_rules(file, rules);
+    
+    fclose(file);
+        
     if (errors > 0)   /* errors during compilation */
     {
-        yr_free_rule_list(rules);       
-        return PyErr_Format(YaraSyntaxError, "line %d: %s", yr_get_error_line_number(), yr_get_last_error_message());
+        free_rule_list(rules);              
+        return PyErr_Format(PyExc_Exception, "error compiling rules"); 
     }
     
     object = PyObject_NEW(Rules, &Rules_Type);
     
     if (object != NULL)
     {
-        yr_prepare_rules(rules);   
-        object->rules = rules;
-    } 
-      
-    return (PyObject *)object;
-}
-
-
-static PyObject * Rules_new_from_string(const char* string)
-{ 
-    RULE_LIST* rules;
-    Rules* object;
-    int errors;
-    
-    rules = yr_alloc_rule_list();
-    
-    if (rules == NULL)
-    {
-        return PyErr_NoMemory();
-    }
-    
-    errors = yr_compile_string(string, rules);
-       
-    if (errors > 0)   /* errors during compilation */
-    {
-        yr_free_rule_list(rules);       
-        return PyErr_Format(YaraSyntaxError, "line %d: %s", yr_get_error_line_number(), yr_get_last_error_message());
-    }
-    
-    object = PyObject_NEW(Rules, &Rules_Type);
-    
-    if (object != NULL)
-    {
-        yr_prepare_rules(rules);   
+        init_hash_table(rules);
+        object->filepath = filepath;    
         object->rules = rules;
     } 
       
@@ -322,9 +287,10 @@ static PyObject * Rules_new_from_string(const char* string)
 }
 
 static void Rules_dealloc(PyObject *self)
-{     
-    yr_free_rule_list(((Rules*) self)->rules);
-    PyObject_Del(self);
+{      
+    free_hash_table(((Rules*) self)->rules);
+    free_rule_list(((Rules*) self)->rules);
+    PyObject_FREE(self);
 }
 
 int callback(RULE* rule, unsigned char* buffer, unsigned int buffer_size, void* data)
@@ -336,9 +302,6 @@ int callback(RULE* rule, unsigned char* buffer, unsigned int buffer_size, void* 
     PyObject* stringlist = NULL;
     PyObject* match;
     PyObject* list = (PyObject*) data;
-    
-    if (!(rule->flags & RULE_FLAGS_MATCH))
-        return 0;
        
     taglist = PyList_New(0);
     stringlist = PyDict_New();
@@ -373,7 +336,8 @@ int callback(RULE* rule, unsigned char* buffer, unsigned int buffer_size, void* 
 
         string = string->next;
     }
-       
+    
+    
     match = Match_NEW(rule->identifier, taglist, stringlist);
     
     if (match != NULL)
@@ -382,8 +346,8 @@ int callback(RULE* rule, unsigned char* buffer, unsigned int buffer_size, void* 
     }
     else
     {
-        Py_DECREF(taglist);
-        Py_DECREF(stringlist);
+        PyObject_FREE(taglist);
+        PyObject_FREE(stringlist);
         return 1;
     }
     
@@ -391,57 +355,53 @@ int callback(RULE* rule, unsigned char* buffer, unsigned int buffer_size, void* 
 
 }
 
-PyObject * Rules_match(PyObject *self, PyObject *args, PyObject *keywords)
+PyObject * Rules_matchstring(PyObject *self, PyObject *args)
 {
-    static char *kwlist[] = {"filepath", "data", NULL};
-    
-    char* filepath = NULL;
-    char* data = NULL;
-    
+    char* data;
     int length;
     int result;
     
     PyObject *matches = NULL;
     Rules *object = (Rules *)self;
     
-    if (PyArg_ParseTupleAndKeywords(args, keywords, "|ss#", kwlist, &filepath, &data, &length))
-    {
+    if (PyArg_ParseTuple(args, "t#", &data, &length)) 
+    {  
         matches = PyList_New(0);
         
-        if (filepath != NULL)
-        {            
-            result = yr_scan_file(filepath, object->rules, callback, matches);
+        result = scan_mem((unsigned char*) data, (unsigned int) length, object->rules, callback, matches);
+       
+       if (result != ERROR_SUCCESS)
+       {
+           PyObject_FREE(matches);
+           return PyErr_Format(PyExc_Exception, "internal error"); 
+       }
+    }
+    
+    return matches;
+}
 
-            if (result != ERROR_SUCCESS)
-            {
-                Py_DECREF(matches);
-
-                switch(result)
-                {
-                    case ERROR_COULD_NOT_OPEN_FILE:
-                        return PyErr_Format(YaraError, "could not open file \"%s\"", filepath);
-                    case ERROR_COULD_NOT_MAP_FILE:
-                        return PyErr_Format(YaraError, "could not map file \"%s\" into memory", filepath);
-                    case ERROR_ZERO_LENGTH_FILE:
-                        return PyErr_Format(YaraError, "zero length file \"%s\"", filepath);
-                    default:
-                        return PyErr_Format(YaraError, "uknown error while scanning file \"%s\"", filepath);
-                }
-            }
-        }
-        else if (data != NULL)
+PyObject * Rules_matchfile(PyObject *self, PyObject *args)
+{
+    char* filepath;
+    int result;
+    PyObject *matches = NULL;
+    Rules *object = (Rules *)self;
+     
+    if (PyArg_ParseTuple(args, "s", &filepath)) 
+    {  
+        matches = PyList_New(0);
+        
+        result = scan_file(filepath, object->rules, callback, matches);
+       
+        if (result == ERROR_COULD_NOT_OPEN_FILE)
         {
-            result = yr_scan_mem((unsigned char*) data, (unsigned int) length, object->rules, callback, matches);
-
-            if (result != ERROR_SUCCESS)
-            {
-               Py_DECREF(matches);
-               return PyErr_Format(PyExc_Exception, "internal error"); 
-            }
+            PyObject_FREE(matches);
+            return PyErr_SetFromErrno(PyExc_IOError);
         }
-        else
+        else if (result != ERROR_SUCCESS)
         {
-            return PyErr_Format(PyExc_TypeError, "match() takes 1 argument");
+            PyObject_FREE(matches);
+            return PyErr_Format(PyExc_Exception, "internal error");
         }
     }
     
@@ -455,49 +415,14 @@ static PyObject * Rules_getattro(PyObject *self, PyObject *name)
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-static PyObject * yara_compile(PyObject *self, PyObject *args, PyObject *keywords)
+static PyObject * yara_compile(PyObject *self, PyObject *args)
 { 
-    static char *kwlist[] = {"filepath", "source", "file", NULL};
-    
-    FILE* fh;
-    
     PyObject *result = NULL;
-    PyObject *py_file = NULL;
-
-    char* filepath = NULL;
-    char* source = NULL;
     
-    if (PyArg_ParseTupleAndKeywords(args, keywords, "|ssO", kwlist, &filepath, &source, &py_file))
-    {
-        if (filepath != NULL)
-        {            
-            fh = fopen(filepath, "r");
-            
-            if (fh != NULL)
-            {
-                result = Rules_new_from_file(fh);
-                fclose(fh);
-            }
-            else
-            {
-                result = PyErr_SetFromErrno(YaraError);
-            }
-        }
-        else if (source != NULL)
-        {
-            result = Rules_new_from_string(source);
-        }
-        else if (py_file != NULL)
-        {
-            fh = PyFile_AsFile(py_file);   
-            result = Rules_new_from_file(fh);
-        }
-        else
-        {
-            result = PyErr_Format(PyExc_TypeError, "compile() takes 1 argument");
-        }
-    } 
+    char* filepath = NULL;
 
+    if (PyArg_ParseTuple(args, "s", &filepath))
+      result = Rules_NEW(filepath);
       
     return result;
 }
@@ -505,7 +430,7 @@ static PyObject * yara_compile(PyObject *self, PyObject *args, PyObject *keyword
 /* Module functions */
 
 static PyMethodDef methods[] = {
-  {"compile", (PyCFunction) yara_compile, METH_VARARGS | METH_KEYWORDS, "Compiles a YARA rules file and returns an instance of class Rules"},
+  {"compile", yara_compile, METH_VARARGS, "Compiles a YARA rules file and returns an instance of class Rules"},
   {NULL, NULL},
 };
 
@@ -514,21 +439,16 @@ static PyMethodDef methods[] = {
 void inityara(void)
 { 
     PyObject *m, *d;
-    
-    yr_init();
  
     m = Py_InitModule3("yara", methods, module_doc);
     d = PyModule_GetDict(m);
-    
+
     /* initialize module variables/constants */
 
 #if PYTHON_API_VERSION >= 1007
-    YaraError = PyErr_NewException("yara.Error", PyExc_StandardError, NULL);
-    YaraSyntaxError = PyErr_NewException("yara.SyntaxError", YaraError, NULL);
+    yara_error = PyErr_NewException("yara.error", NULL, NULL);
 #else
-    YaraError = Py_BuildValue("s", "yara.Error");
-    YaraSyntaxError = Py_BuildValue("s", "yara.SyntaxError");
+    yara_error = Py_BuildValue("s", "yara.error");
 #endif
-    PyDict_SetItemString(d, "Error", YaraError);
-    PyDict_SetItemString(d, "SyntaxError", YaraSyntaxError);
+    PyDict_SetItemString(d, "error", yara_error);
 }

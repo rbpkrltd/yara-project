@@ -21,13 +21,9 @@ extern int yynerrs;
 void yyerror (char const *);
 
 extern int last_error;
-extern int last_result;
-extern int last_error_line;
-
 extern char last_error_extra_info[100];
-extern const char* file_name;
 
-char* get_error_message(int error_code);
+void show_last_error();
 
 #endif
 

@@ -69,11 +69,12 @@ RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	ps-recursive uninstall-recursive
 man1dir = $(mandir)/man1
 NROFF = nroff
-MANS = $(man1_MANS)
+MANS = $(man_MANS)
 RECURSIVE_CLEAN_TARGETS = mostlyclean-recursive clean-recursive	\
   distclean-recursive maintainer-clean-recursive
 ETAGS = etags
 CTAGS = ctags
+DIST_SUBDIRS = $(SUBDIRS)
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
@@ -85,11 +86,11 @@ DIST_ARCHIVES = $(distdir).tar.gz
 GZIP_ENV = --best
 distuninstallcheck_listfiles = find . -type f -print
 distcleancheck_listfiles = find . -type f -print
-ACLOCAL = ${SHELL} /Users/plusvic/Projects/yara/trunk/missing --run aclocal-1.10
-AMTAR = ${SHELL} /Users/plusvic/Projects/yara/trunk/missing --run tar
-AUTOCONF = ${SHELL} /Users/plusvic/Projects/yara/trunk/missing --run autoconf
-AUTOHEADER = ${SHELL} /Users/plusvic/Projects/yara/trunk/missing --run autoheader
-AUTOMAKE = ${SHELL} /Users/plusvic/Projects/yara/trunk/missing --run automake-1.10
+ACLOCAL = ${SHELL} /Users/plusvic/Projects/yara/missing --run aclocal-1.10
+AMTAR = ${SHELL} /Users/plusvic/Projects/yara/missing --run tar
+AUTOCONF = ${SHELL} /Users/plusvic/Projects/yara/missing --run autoconf
+AUTOHEADER = ${SHELL} /Users/plusvic/Projects/yara/missing --run autoheader
+AUTOMAKE = ${SHELL} /Users/plusvic/Projects/yara/missing --run automake-1.10
 AWK = awk
 CC = gcc
 CCDEPMODE = depmode=gcc3
@@ -111,24 +112,24 @@ LDFLAGS =
 LIBOBJS = 
 LIBS = -lpcre -lpcre -lpcre -lpcre 
 LTLIBOBJS = 
-MAKEINFO = ${SHELL} /Users/plusvic/Projects/yara/trunk/missing --run makeinfo
+MAKEINFO = ${SHELL} /Users/plusvic/Projects/yara/missing --run makeinfo
 MKDIR_P = ./install-sh -c -d
 OBJEXT = o
 PACKAGE = yara
 PACKAGE_BUGREPORT = vmalvarez@hispasec.com
 PACKAGE_NAME = yara
-PACKAGE_STRING = yara 1.2.1
+PACKAGE_STRING = yara 1.0
 PACKAGE_TARNAME = yara
-PACKAGE_VERSION = 1.2.1
+PACKAGE_VERSION = 1.0
 PATH_SEPARATOR = :
 SET_MAKE = 
 SHELL = /bin/sh
 STRIP = 
-VERSION = 1.2.1
-abs_builddir = /Users/plusvic/Projects/yara/trunk
-abs_srcdir = /Users/plusvic/Projects/yara/trunk
-abs_top_builddir = /Users/plusvic/Projects/yara/trunk
-abs_top_srcdir = /Users/plusvic/Projects/yara/trunk
+VERSION = 1.0
+abs_builddir = /Users/plusvic/Projects/yara
+abs_srcdir = /Users/plusvic/Projects/yara
+abs_top_builddir = /Users/plusvic/Projects/yara
+abs_top_srcdir = /Users/plusvic/Projects/yara
 ac_ct_CC = gcc
 am__include = include
 am__leading_dot = .
@@ -147,7 +148,7 @@ host_alias =
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
-install_sh = $(SHELL) /Users/plusvic/Projects/yara/trunk/install-sh
+install_sh = $(SHELL) /Users/plusvic/Projects/yara/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localedir = ${datarootdir}/locale
@@ -170,14 +171,12 @@ top_srcdir = .
 
 # Build the library in the hand subdirectory first.
 SUBDIRS = libyara
-DIST_SUBDIRS = libyara
 AM_CPPFLAGS = -I$(srcdir)/libyara
 yara_SOURCES = yara.c
 yara_LDADD = libyara/.libs/libyara.a
 
 # man page
-man1_MANS = yara.man
-EXTRA_DIST = $(man1_MANS)
+man_MANS = doc/yara.1
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 

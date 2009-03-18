@@ -14,15 +14,40 @@ GNU General Public License for more details.
 
 */
 
-#ifndef _MEM_H 
-#define _MEM_H
+#include <stdio.h>
+#include "compile.h"
+#include "error.h"
 
-void yr_heap_alloc();
-void yr_heap_free();
-void* yr_malloc(size_t size);
-void yr_free(void *ptr);
-char* yr_strdup(const char *s);
 
-#endif
+int line_number;
+const char* file_name;
 
+RULE_LIST* rule_list;
+
+void set_file_name(const char* rules_file_name)
+{
+	file_name = rules_file_name;
+}
+
+int compile_rules(FILE* rules_file, RULE_LIST* rules)
+{	
+	rule_list = rules;	
+	yyin = rules_file;
+
+	if (yyin != NULL)
+	{
+		//yydebug = 1;	
+		line_number = 1;		
+		yyparse();	
+	}
+		
+	return yynerrs;
+}
+
+
+/*int yywrap()
+{
+	// line_number = 1;
+	return 1;
+*/
 
