@@ -22,9 +22,12 @@ GNU General Public License for more details.
 #include "yara.h"
 #include "ast.h"
 #include "error.h"
-#include "mem.h"
 
 #define todigit(x)  ((x) >='A'&& (x) <='F')? ((unsigned char) (x - 'A' + 10)) : ((unsigned char) (x - '0'))
+
+#ifdef WIN32
+#define strdup _strdup
+#endif
 
 RULE* lookup_rule(RULE_LIST* rules, char* identifier)
 {
@@ -118,7 +121,7 @@ int new_rule(RULE_LIST* rules, char* identifier, int flags, TAG* tag_list_head, 
     
     if (lookup_rule(rules, identifier) == NULL)  /* do not allow rules with the same identifier */
     {
-        new_rule = (RULE*) yr_malloc(sizeof(RULE));
+        new_rule = (RULE*) malloc(sizeof(RULE));
     
         if (new_rule != NULL)
         {
@@ -185,13 +188,13 @@ int new_hex_string(SIZED_STRING* charstr, unsigned char** hexstr, unsigned char*
     
     //assert(charstr[0] == '{' && charstr[len - 1] == '}');
     
-    *hexstr = hex = (unsigned char*) yr_malloc(len / 2);
-    *maskstr = mask = (unsigned char*) yr_malloc(len);
+    *hexstr = hex = (unsigned char*) malloc(len / 2);
+    *maskstr = mask = (unsigned char*) malloc(len);
     
     if (hex == NULL || mask == NULL)
     {
-        if (hex) yr_free(hex);
-        if (mask) yr_free(mask);
+        if (hex) free(hex);
+        if (mask) free(mask);
         
         return ERROR_INSUFICIENT_MEMORY;
     }
@@ -415,8 +418,8 @@ int new_hex_string(SIZED_STRING* charstr, unsigned char** hexstr, unsigned char*
     
     if (result != ERROR_SUCCESS)
     {
-        yr_free(*hexstr);
-        yr_free(*maskstr); 
+        free(*hexstr);
+        free(*maskstr); 
         *hexstr = NULL;
         *maskstr = NULL;
     }
@@ -435,15 +438,16 @@ int new_text_string(SIZED_STRING* charstr, int flags, unsigned char** hexstr, RE
     //assert(charstr && hexstr && regexp && length);
     
     *length = charstr->length;
-    *hexstr = yr_malloc(charstr->length);
+    *hexstr = malloc(charstr->length);
     
     if (*hexstr == NULL)
     {
         return ERROR_INSUFICIENT_MEMORY;
     }
-
+    
     memcpy(*hexstr, charstr->c_string, charstr->length);
-         
+    
+     
      if (flags & STRING_FLAGS_REGEXP)
      {           
 		options = PCRE_ANCHORED;
@@ -452,8 +456,8 @@ int new_text_string(SIZED_STRING* charstr, int flags, unsigned char** hexstr, RE
          {
              options |= PCRE_CASELESS;
          }
-
-         re->regexp = pcre_compile(charstr->c_string, options, &error, &erroffset, NULL); 
+         
+         re->regexp = pcre_compile((char*) *hexstr, options, &error, &erroffset, NULL); 
 
          if (re->regexp != NULL)  
          {
@@ -480,7 +484,7 @@ int new_string(char* identifier, SIZED_STRING* charstr, int flags, STRING** stri
     STRING* new_string;
     int result = ERROR_SUCCESS;
         
-    new_string = (STRING*) yr_malloc(sizeof(STRING));
+    new_string = (STRING*) malloc(sizeof(STRING));
     
     if(new_string != NULL)
     {
@@ -503,7 +507,7 @@ int new_string(char* identifier, SIZED_STRING* charstr, int flags, STRING** stri
         
         if (result != ERROR_SUCCESS)
         {
-            yr_free(new_string);
+            free(new_string);
             new_string = NULL;
         }   
     }
@@ -511,7 +515,7 @@ int new_string(char* identifier, SIZED_STRING* charstr, int flags, STRING** stri
     {
         result = ERROR_INSUFICIENT_MEMORY;   
     }
-
+    
     *string = new_string;
     return result;
 }
@@ -521,7 +525,7 @@ int new_simple_term(int type, TERM** term)
     TERM* new_term;
     int result = ERROR_SUCCESS;
     
-    new_term = (TERM*) yr_malloc(sizeof(TERM));
+    new_term = (TERM*) malloc(sizeof(TERM));
     
     if (new_term != NULL)
     {
@@ -542,7 +546,7 @@ int new_unary_operation(int type, TERM* op, TERM_UNARY_OPERATION** term)
     TERM_UNARY_OPERATION* new_term;
     int result = ERROR_SUCCESS;
     
-    new_term = (TERM_UNARY_OPERATION*) yr_malloc(sizeof(TERM_UNARY_OPERATION));
+    new_term = (TERM_UNARY_OPERATION*) malloc(sizeof(TERM_UNARY_OPERATION));
     
     if (new_term != NULL)
     {
@@ -563,7 +567,7 @@ int new_binary_operation(int type, TERM* op1, TERM* op2, TERM_BINARY_OPERATION**
     TERM_BINARY_OPERATION* new_term;
     int result = ERROR_SUCCESS;
     
-    new_term = (TERM_BINARY_OPERATION*) yr_malloc(sizeof(TERM_BINARY_OPERATION));
+    new_term = (TERM_BINARY_OPERATION*) malloc(sizeof(TERM_BINARY_OPERATION));
     
     if (new_term != NULL)
     {
@@ -585,7 +589,7 @@ int new_ternary_operation(int type, TERM* op1, TERM* op2, TERM* op3, TERM_TERNAR
     TERM_TERNARY_OPERATION* new_term;
     int result = ERROR_SUCCESS;
     
-    new_term = (TERM_TERNARY_OPERATION*) yr_malloc(sizeof(TERM_TERNARY_OPERATION));
+    new_term = (TERM_TERNARY_OPERATION*) malloc(sizeof(TERM_TERNARY_OPERATION));
     
     if (new_term != NULL)
     {
@@ -608,7 +612,7 @@ int new_constant(unsigned int constant, TERM_CONST** term)
     TERM_CONST* new_term;
     int result = ERROR_SUCCESS;
     
-    new_term = (TERM_CONST*) yr_malloc(sizeof(TERM_CONST));
+    new_term = (TERM_CONST*) malloc(sizeof(TERM_CONST));
 
     if (new_term != NULL)
     {
@@ -639,7 +643,7 @@ int new_string_identifier(int type, STRING* defined_strings, char* identifier, T
     		/* the string has been used in an expression, mark it as referenced */
     		string->flags |= STRING_FLAGS_REFERENCED;  
 	
-            new_term = (TERM_STRING*) yr_malloc(sizeof(TERM_STRING));
+            new_term = (TERM_STRING*) malloc(sizeof(TERM_STRING));
 
             if (new_term != NULL)
             {
@@ -655,7 +659,7 @@ int new_string_identifier(int type, STRING* defined_strings, char* identifier, T
     }
     else  /* anonymous strings */
     {
-        new_term = (TERM_STRING*) yr_malloc(sizeof(TERM_STRING));
+        new_term = (TERM_STRING*) malloc(sizeof(TERM_STRING));
 
         if (new_term != NULL)
         {
@@ -674,44 +678,28 @@ int new_string_identifier(int type, STRING* defined_strings, char* identifier, T
 
 	Frees a term. If the term depends on other terms they are also freed. Notice that
 	some terms hold references to STRING structures, but these structures are freed
-	by yr_free_rule_list, not by this function.
+	by free_rule_list, not by this function.
 	
 */
 
 void free_term(TERM* term)
 {
-    TERM_STRING* next;
-    TERM_STRING* tmp;
-
     switch(term->type)
     {
     case TERM_TYPE_STRING:
-    
-        next = ((TERM_STRING*) term)->next;
-    
-        while (next != NULL)
-        {
-            tmp = next->next;
-            yr_free(next);
-            next = tmp;     
-        }
-    
-        break;
+        break;//TODO: free next
     
 	case TERM_TYPE_STRING_AT:
-	
 		free_term(((TERM_STRING*)term)->offset);
 		break;
 	
 	case TERM_TYPE_STRING_IN_RANGE:
-	
         free_term(((TERM_STRING*)term)->lower_offset);
 		free_term(((TERM_STRING*)term)->upper_offset);
         break;
 
 	case TERM_TYPE_STRING_IN_SECTION_BY_NAME:
-	    
-	    yr_free(((TERM_STRING*)term)->section_name);
+	    free(((TERM_STRING*)term)->section_name);
 		break;
                     
     case TERM_TYPE_AND:          
@@ -726,7 +714,6 @@ void free_term(TERM* term)
     case TERM_TYPE_LE:
     case TERM_TYPE_EQ:
     case TERM_TYPE_OF:
-    case TERM_TYPE_NOT_EQ:
         free_term(((TERM_BINARY_OPERATION*)term)->op1);
         free_term(((TERM_BINARY_OPERATION*)term)->op2);
         break;        
@@ -740,19 +727,99 @@ void free_term(TERM* term)
     case TERM_TYPE_UINT32_AT_OFFSET:
         free_term(((TERM_UNARY_OPERATION*)term)->op);
         break;
-        
-    case TERM_TYPE_FOR:
-        free_term(((TERM_TERNARY_OPERATION*)term)->op1);
-        free_term(((TERM_TERNARY_OPERATION*)term)->op2);
-        
-        if (((TERM_TERNARY_OPERATION*)term)->op3 != NULL)
-           free_term(((TERM_TERNARY_OPERATION*)term)->op3); 
-           
-        break;
     }
     
-    yr_free(term);
+    free(term);
+}
+
+RULE_LIST* alloc_rule_list()
+{
+	RULE_LIST* rule_list = (RULE_LIST*) malloc(sizeof(RULE_LIST));
+
+	rule_list->head = NULL;
+	rule_list->tail = NULL;
+    rule_list->non_hashed_strings = NULL;
+
+	memset(rule_list->hash_table, 0, sizeof(rule_list->hash_table));
+
+	return rule_list;
 }
 
 
+/* 
+	void free_rule_list(RULE_LIST* rule_list)
+
+	Frees a list of rules, its strings and conditions.
+	
+*/
+
+void free_rule_list(RULE_LIST* rule_list)
+{
+    RULE* rule;
+    RULE* next_rule;
+    STRING* string;
+    STRING* next_string;
+    MATCH* match;
+    MATCH* next_match;
+	TAG* tag;
+	TAG* next_tag;
+    
+    rule = rule_list->head;
+    
+    while (rule != NULL)
+    {
+        next_rule = rule->next;
+        
+        string = rule->string_list_head;
+        
+        while (string != NULL)
+        {
+            next_string = string->next;
+            
+			free(string->identifier);
+            free(string->string);
+            
+            if (IS_HEX(string))
+            {   
+                free(string->mask);
+            }
+            else if (IS_REGEXP(string))
+            {
+                pcre_free(string->re.regexp);
+                pcre_free(string->re.extra);
+            }
+            
+            match = string->matches;
+            
+            while (match != NULL)
+            {
+                next_match = match->next;
+                free(match);
+                match = next_match;
+            }
+            
+            free(string);
+            string = next_string;
+        }
+
+		tag = rule->tag_list_head;
+
+		while (tag != NULL)
+		{
+			next_tag = tag->next;
+			
+			free(tag->identifier);
+			free(tag);
+			
+			tag = next_tag;
+		}
+        
+        free_term(rule->condition);
+        
+        free(rule);
+        rule = next_rule;
+    }
+
+	free(rule_list);
+}
 

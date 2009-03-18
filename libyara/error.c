@@ -18,13 +18,11 @@ GNU General Public License for more details.
 #include <string.h>
 
 #include "error.h"
-#include "yara.h"
+#include "compile.h"
 
 #ifdef WIN32
 #define snprintf _snprintf
 #endif
-
-extern int line_number;
 
 int last_result = ERROR_SUCCESS;
 int last_error = ERROR_SUCCESS;
@@ -34,6 +32,8 @@ char last_error_message[500];
 char error_message[500];
 
 YARAREPORT report_function = NULL;
+
+//TODO: Arreglar los mensajes de error en yara-python. No sale nada cuando se trata de un error de sintaxis de yyparse
 
 void yyerror(const char *error_message)
 {    
@@ -56,23 +56,23 @@ void yyerror(const char *error_message)
     }	
 }
 
-int yr_get_last_error()
+int get_last_error()
 {
     return last_error;
 }
 
-int yr_get_error_line_number()
+int get_error_line_number()
 {
     return last_error_line;
 }
 
-char* yr_get_last_error_message()
+char* get_last_error_message()
 {
     return last_error_message;
 }
 
 
-void yr_set_report_function(YARAREPORT fn)
+void set_report_function(YARAREPORT fn)
 {
     report_function = fn;
 }
@@ -145,8 +145,4 @@ char* get_error_message(int error_code)
 	
     return error_message;
 }
-
-
-
-
 

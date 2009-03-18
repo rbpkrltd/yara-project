@@ -6,54 +6,18 @@
 #include <stdio.h>
 #include <string.h>
 #include "grammar.h"
+#include "compile.h"
 #include "error.h"
 #include "xtoi.h"
-#include "mem.h"
-#include "sizedstr.h"
-#include "yara.h"
-
-int             line_number;
-const char*     file_name;
-RULE_LIST*      rule_list;
-
-char 			string_buf[256];
-char*			string_buf_ptr;
-unsigned 		short string_buf_len;
 
 
-int parse_string(const char* string, RULE_LIST* rules)
-{
-	YY_BUFFER_STATE state;
+char string_buf[256];
+char *string_buf_ptr;
+unsigned short string_buf_len;
 
-	rule_list = rules;	
-
-	state = yy_scan_string(string);
-
-	yyparse();
-
-	yy_delete_buffer(state);
-
-	return yynerrs;
-}
-
-int parse_file(FILE* rules_file, RULE_LIST* rules)
-{	
-	rule_list = rules;	
-	yyin = rules_file;
-
-	if (yyin != NULL)
-	{
-		//yydebug = 1;	
-		line_number = 1;		
-		yyparse();	
-	}
-		
-	return yynerrs;
-}
-
-
-
-
+#ifdef WIN32
+#define strdup _strdup
+#endif
 
 %}
 
@@ -127,25 +91,25 @@ hexdigit      [a-fA-F0-9]
 								line_number++;
 							}
 							
-$({letter}|{digit}|_)*"*" {
-                       		yylval.c_string = (char*) yr_strdup(yytext);
+$({letter}|{digit})*"*" {
+                       		yylval.c_string = (char*) strdup(yytext);
                        		return _STRING_IDENTIFIER_WITH_WILDCARD_;      
 					 	}
 
-$({letter}|{digit}|_)* {
-                       		yylval.c_string = (char*) yr_strdup(yytext);
+$({letter}|{digit})* {
+                       		yylval.c_string = (char*) strdup(yytext);
                        		return _STRING_IDENTIFIER_;      
 					 }
 				
 					
-#({letter}|{digit}|_)* {	
-                       		yylval.c_string = (char*) yr_strdup(yytext);
+#({letter}|{digit})* {	
+                       		yylval.c_string = (char*) strdup(yytext);
 							yylval.c_string[0] = '$'; 					/* replace # by $*/
 		                    return _STRING_COUNT_;      
 					 }
 					
-@({letter}|{digit}|_)* {	
-	                      	yylval.c_string = (char*) yr_strdup(yytext);
+@({letter}|{digit})* {	
+	                      	yylval.c_string = (char*) strdup(yytext);
 							yylval.c_string[0] = '$'; 					/* replace @ by $*/
 		                    return _STRING_OFFSET_;      
 					 }					
@@ -157,7 +121,7 @@ $({letter}|{digit}|_)* {
 											yynerrs++;
 										}
 										
-										yylval.c_string = (char*) yr_strdup(yytext);
+										yylval.c_string = (char*) strdup(yytext);
                    						return _IDENTIFIER_;
 									}
 							
@@ -195,11 +159,11 @@ $({letter}|{digit}|_)* {
 
 						BEGIN(INITIAL);
 						
-						s = (SIZED_STRING*) yr_malloc(string_buf_len + sizeof(SIZED_STRING));
+						s = (SIZED_STRING*) malloc(string_buf_len + sizeof(SIZED_STRING));
 						
 						s->length = string_buf_len;
 						
-						strcpy(s->c_string, string_buf);
+						memcpy(s->c_string, string_buf, string_buf_len);
 					
 						yylval.sized_string = s;
 												
@@ -254,12 +218,12 @@ $({letter}|{digit}|_)* {
 
 						BEGIN(INITIAL);
 
-						s = (SIZED_STRING*) yr_malloc(string_buf_len + sizeof(SIZED_STRING));
+						s = (SIZED_STRING*) malloc(string_buf_len + sizeof(SIZED_STRING));
 
 						s->length = string_buf_len;
 
-						strcpy(s->c_string, string_buf);
-					
+						memcpy(s->c_string, string_buf, string_buf_len);
+
 						yylval.sized_string = s;
 
 						return _REGEXP_;
@@ -308,7 +272,7 @@ $({letter}|{digit}|_)* {
 \{({hexdigit}|[ \-|\?\[\]\(\)])+\}		{ 
 										int len = strlen(yytext);
 										
-										SIZED_STRING* s = (SIZED_STRING*) yr_malloc(len + sizeof(SIZED_STRING));
+										SIZED_STRING* s = (SIZED_STRING*) malloc(len + sizeof(SIZED_STRING));
 
 										s->length = len;
 

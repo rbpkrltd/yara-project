@@ -250,13 +250,13 @@ static PyTypeObject Rules_Type = {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-static PyObject * Rules_new_from_file(FILE* file)
+static PyObject * Rules_NEW(FILE* file)
 { 
     RULE_LIST* rules;
     Rules* object;
     int errors;
 
-    rules = yr_alloc_rule_list();
+    rules = alloc_rule_list();
     
     if (rules == NULL)
     {
@@ -265,56 +265,23 @@ static PyObject * Rules_new_from_file(FILE* file)
     
     if (file == NULL)
     {
-        yr_free_rule_list(rules);
+        free_rule_list(rules);
         return PyErr_SetFromErrno(PyExc_IOError);
     }
         
-    errors = yr_compile_file(file, rules);
+    errors = compile_rules(file, rules);
        
     if (errors > 0)   /* errors during compilation */
     {
-        yr_free_rule_list(rules);       
-        return PyErr_Format(YaraSyntaxError, "line %d: %s", yr_get_error_line_number(), yr_get_last_error_message());
+        free_rule_list(rules);       
+        return PyErr_Format(YaraSyntaxError, "line %d: %s", get_error_line_number(), get_last_error_message());
     }
     
     object = PyObject_NEW(Rules, &Rules_Type);
     
     if (object != NULL)
     {
-        yr_prepare_rules(rules);   
-        object->rules = rules;
-    } 
-      
-    return (PyObject *)object;
-}
-
-
-static PyObject * Rules_new_from_string(const char* string)
-{ 
-    RULE_LIST* rules;
-    Rules* object;
-    int errors;
-    
-    rules = yr_alloc_rule_list();
-    
-    if (rules == NULL)
-    {
-        return PyErr_NoMemory();
-    }
-    
-    errors = yr_compile_string(string, rules);
-       
-    if (errors > 0)   /* errors during compilation */
-    {
-        yr_free_rule_list(rules);       
-        return PyErr_Format(YaraSyntaxError, "line %d: %s", yr_get_error_line_number(), yr_get_last_error_message());
-    }
-    
-    object = PyObject_NEW(Rules, &Rules_Type);
-    
-    if (object != NULL)
-    {
-        yr_prepare_rules(rules);   
+        init_hash_table(rules);   
         object->rules = rules;
     } 
       
@@ -323,7 +290,8 @@ static PyObject * Rules_new_from_string(const char* string)
 
 static void Rules_dealloc(PyObject *self)
 {     
-    yr_free_rule_list(((Rules*) self)->rules);
+    free_hash_table(((Rules*) self)->rules);
+    free_rule_list(((Rules*) self)->rules);
     PyObject_Del(self);
 }
 
@@ -410,7 +378,7 @@ PyObject * Rules_match(PyObject *self, PyObject *args, PyObject *keywords)
         
         if (filepath != NULL)
         {            
-            result = yr_scan_file(filepath, object->rules, callback, matches);
+            result = scan_file(filepath, object->rules, callback, matches);
 
             if (result != ERROR_SUCCESS)
             {
@@ -431,7 +399,7 @@ PyObject * Rules_match(PyObject *self, PyObject *args, PyObject *keywords)
         }
         else if (data != NULL)
         {
-            result = yr_scan_mem((unsigned char*) data, (unsigned int) length, object->rules, callback, matches);
+            result = scan_mem((unsigned char*) data, (unsigned int) length, object->rules, callback, matches);
 
             if (result != ERROR_SUCCESS)
             {
@@ -475,7 +443,7 @@ static PyObject * yara_compile(PyObject *self, PyObject *args, PyObject *keyword
             
             if (fh != NULL)
             {
-                result = Rules_new_from_file(fh);
+                result = Rules_NEW(fh);
                 fclose(fh);
             }
             else
@@ -485,12 +453,19 @@ static PyObject * yara_compile(PyObject *self, PyObject *args, PyObject *keyword
         }
         else if (source != NULL)
         {
-            result = Rules_new_from_string(source);
+            fh = tmpfile();
+            
+            fprintf(fh, "%s", source);
+            fseek(fh, 0, SEEK_SET);
+            
+            result = Rules_NEW(fh);
+            
+            fclose(fh);
         }
         else if (py_file != NULL)
         {
             fh = PyFile_AsFile(py_file);   
-            result = Rules_new_from_file(fh);
+            result = Rules_NEW(fh);
         }
         else
         {
@@ -514,8 +489,6 @@ static PyMethodDef methods[] = {
 void inityara(void)
 { 
     PyObject *m, *d;
-    
-    yr_init();
  
     m = Py_InitModule3("yara", methods, module_doc);
     d = PyModule_GetDict(m);

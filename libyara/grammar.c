@@ -179,13 +179,11 @@
 
 #include "ast.h"
 #include "error.h"
+#include "compile.h"
 #include "sizedstr.h"
-#include "mem.h"
-
-extern RULE_LIST* rule_list;
 
 #define YYERROR_VERBOSE
-//#define YYDEBUG 1
+#define YYDEBUG 1
 
 
 
@@ -203,7 +201,7 @@ extern RULE_LIST* rule_list;
 #endif
 
 #if ! defined (YYSTYPE) && ! defined (YYSTYPE_IS_DECLARED)
-#line 95 "grammar.y"
+#line 93 "grammar.y"
 typedef union YYSTYPE {
     
     void*           sized_string;
@@ -215,7 +213,7 @@ typedef union YYSTYPE {
 
 } YYSTYPE;
 /* Line 190 of yacc.c.  */
-#line 219 "grammar.c"
+#line 217 "grammar.c"
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
 # define YYSTYPE_IS_TRIVIAL 1
@@ -224,7 +222,7 @@ typedef union YYSTYPE {
 
 
 /* Copy the second part of user declarations.  */
-#line 109 "grammar.y"
+#line 107 "grammar.y"
  
     
 /* Global variables */
@@ -262,7 +260,7 @@ int count_strings(TERM_STRING* st);
 
 
 /* Line 213 of yacc.c.  */
-#line 266 "grammar.c"
+#line 264 "grammar.c"
 
 #if ! defined (yyoverflow) || YYERROR_VERBOSE
 
@@ -473,15 +471,15 @@ static const yysigned_char yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const unsigned short int yyrline[] =
 {
-       0,   147,   147,   148,   149,   152,   161,   172,   173,   176,
-     177,   180,   181,   184,   194,   206,   216,   228,   239,   250,
-     263,   264,   267,   268,   269,   270,   273,   274,   275,   286,
-     297,   308,   312,   323,   335,   334,   352,   351,   369,   368,
-     385,   396,   407,   418,   419,   420,   421,   422,   423,   424,
-     425,   426,   427,   428,   429,   430,   434,   435,   438,   439,
-     445,   456,   470,   471,   472,   473,   474,   475,   476,   477,
-     478,   489,   500,   501,   502,   503,   504,   505,   508,   511,
-     512,   513
+       0,   145,   145,   146,   147,   150,   159,   170,   171,   174,
+     175,   178,   179,   182,   192,   204,   214,   226,   237,   248,
+     261,   262,   265,   266,   267,   268,   271,   272,   273,   284,
+     295,   306,   310,   321,   333,   332,   350,   349,   367,   366,
+     383,   394,   405,   416,   417,   418,   419,   420,   421,   422,
+     423,   424,   425,   426,   427,   428,   432,   433,   436,   437,
+     443,   454,   468,   469,   470,   471,   472,   473,   474,   475,
+     476,   487,   498,   499,   500,   501,   502,   503,   506,   509,
+     510,   511
 };
 #endif
 
@@ -1350,7 +1348,7 @@ yyreduce:
   switch (yyn)
     {
         case 5:
-#line 153 "grammar.y"
+#line 151 "grammar.y"
     { 
                 if (reduce_rule_declaration((yyvsp[-6].c_string),(yyvsp[-8].integer),(yyvsp[-5].tag),0,(yyvsp[-1].term)) != ERROR_SUCCESS)
                 {
@@ -1362,7 +1360,7 @@ yyreduce:
     break;
 
   case 6:
-#line 162 "grammar.y"
+#line 160 "grammar.y"
     { 
                 if (reduce_rule_declaration((yyvsp[-9].c_string),(yyvsp[-11].integer),(yyvsp[-8].tag),(yyvsp[-4].string),(yyvsp[-1].term)) != ERROR_SUCCESS)
                 {
@@ -1374,37 +1372,37 @@ yyreduce:
     break;
 
   case 7:
-#line 172 "grammar.y"
+#line 170 "grammar.y"
     { (yyval.integer) = 0;  }
     break;
 
   case 8:
-#line 173 "grammar.y"
+#line 171 "grammar.y"
     { (yyval.integer) = (yyvsp[-1].integer) | (yyvsp[0].integer); }
     break;
 
   case 9:
-#line 176 "grammar.y"
+#line 174 "grammar.y"
     { (yyval.integer) = RULE_FLAGS_PRIVATE; }
     break;
 
   case 10:
-#line 177 "grammar.y"
+#line 175 "grammar.y"
     { (yyval.integer) = RULE_FLAGS_GLOBAL; }
     break;
 
   case 11:
-#line 180 "grammar.y"
+#line 178 "grammar.y"
     { (yyval.tag) = NULL; }
     break;
 
   case 12:
-#line 181 "grammar.y"
+#line 179 "grammar.y"
     { (yyval.tag) = (yyvsp[0].tag);   }
     break;
 
   case 13:
-#line 184 "grammar.y"
+#line 182 "grammar.y"
     { 
                                                 (yyval.tag) = reduce_tags(NULL,(yyvsp[0].c_string)); 
                                                 
@@ -1418,7 +1416,7 @@ yyreduce:
     break;
 
   case 14:
-#line 194 "grammar.y"
+#line 192 "grammar.y"
     {   
                                                 (yyval.tag) = reduce_tags((yyvsp[-1].tag),(yyvsp[0].c_string)); 
                                                 
@@ -1432,7 +1430,7 @@ yyreduce:
     break;
 
   case 15:
-#line 206 "grammar.y"
+#line 204 "grammar.y"
     { 
                                                 (yyval.string) = reduce_strings(NULL,(yyvsp[0].string)); 
                                                 
@@ -1446,7 +1444,7 @@ yyreduce:
     break;
 
   case 16:
-#line 216 "grammar.y"
+#line 214 "grammar.y"
     { 
                                                 (yyval.string) = reduce_strings((yyvsp[-1].string),(yyvsp[0].string));
                                                 
@@ -1460,7 +1458,7 @@ yyreduce:
     break;
 
   case 17:
-#line 229 "grammar.y"
+#line 227 "grammar.y"
     { 
                             (yyval.string) = reduce_string_declaration((yyvsp[-3].term), (yyvsp[-1].sized_string), (yyvsp[0].integer)); 
                 
@@ -1474,7 +1472,7 @@ yyreduce:
     break;
 
   case 18:
-#line 240 "grammar.y"
+#line 238 "grammar.y"
     { 
                            (yyval.string) = reduce_string_declaration((yyvsp[-3].term), (yyvsp[-1].sized_string), (yyvsp[0].integer) | STRING_FLAGS_REGEXP); 
 
@@ -1488,7 +1486,7 @@ yyreduce:
     break;
 
   case 19:
-#line 251 "grammar.y"
+#line 249 "grammar.y"
     {
                             (yyval.string) = reduce_string_declaration((yyvsp[-2].term), (yyvsp[0].sized_string), STRING_FLAGS_HEXADECIMAL);
             
@@ -1502,47 +1500,47 @@ yyreduce:
     break;
 
   case 20:
-#line 263 "grammar.y"
+#line 261 "grammar.y"
     { (yyval.integer) = 0;  }
     break;
 
   case 21:
-#line 264 "grammar.y"
+#line 262 "grammar.y"
     { (yyval.integer) = (yyvsp[-1].integer) | (yyvsp[0].integer); }
     break;
 
   case 22:
-#line 267 "grammar.y"
+#line 265 "grammar.y"
     { (yyval.integer) = STRING_FLAGS_WIDE; }
     break;
 
   case 23:
-#line 268 "grammar.y"
+#line 266 "grammar.y"
     { (yyval.integer) = STRING_FLAGS_ASCII; }
     break;
 
   case 24:
-#line 269 "grammar.y"
+#line 267 "grammar.y"
     { (yyval.integer) = STRING_FLAGS_NO_CASE; }
     break;
 
   case 25:
-#line 270 "grammar.y"
+#line 268 "grammar.y"
     { (yyval.integer) = STRING_FLAGS_FULL_WORD; }
     break;
 
   case 26:
-#line 273 "grammar.y"
+#line 271 "grammar.y"
     { (yyval.term) = reduce_constant(1); }
     break;
 
   case 27:
-#line 274 "grammar.y"
+#line 272 "grammar.y"
     { (yyval.term) = reduce_constant(0); }
     break;
 
   case 28:
-#line 276 "grammar.y"
+#line 274 "grammar.y"
     { 
                         (yyval.term) = reduce_rule((yyvsp[0].c_string));
                         
@@ -1556,7 +1554,7 @@ yyreduce:
     break;
 
   case 29:
-#line 287 "grammar.y"
+#line 285 "grammar.y"
     {  
                         (yyval.term) = reduce_string((yyvsp[0].term));
                         
@@ -1570,7 +1568,7 @@ yyreduce:
     break;
 
   case 30:
-#line 298 "grammar.y"
+#line 296 "grammar.y"
     {          
                         (yyval.term) = reduce_string_at((yyvsp[-2].term), (yyvsp[0].term));
                         
@@ -1584,14 +1582,14 @@ yyreduce:
     break;
 
   case 31:
-#line 309 "grammar.y"
+#line 307 "grammar.y"
     { 
                         (yyval.term) = NULL; 
                      }
     break;
 
   case 32:
-#line 313 "grammar.y"
+#line 311 "grammar.y"
     {          
                         (yyval.term) = reduce_string_in_range((yyvsp[-7].term), (yyvsp[-4].term), (yyvsp[-1].term));
                         
@@ -1605,7 +1603,7 @@ yyreduce:
     break;
 
   case 33:
-#line 324 "grammar.y"
+#line 322 "grammar.y"
     {          
                         (yyval.term) = reduce_string_in_section_by_name((yyvsp[-5].term), (yyvsp[-1].sized_string));
 
@@ -1619,14 +1617,14 @@ yyreduce:
     break;
 
   case 34:
-#line 335 "grammar.y"
+#line 333 "grammar.y"
     { 
-                           inside_for++; 
+                          inside_for++; 
                       }
     break;
 
   case 35:
-#line 339 "grammar.y"
+#line 337 "grammar.y"
     { 
                            inside_for--; 
                            
@@ -1642,14 +1640,14 @@ yyreduce:
     break;
 
   case 36:
-#line 352 "grammar.y"
+#line 350 "grammar.y"
     { 
-                          inside_for++; 
+                         inside_for++; 
                      }
     break;
 
   case 37:
-#line 356 "grammar.y"
+#line 354 "grammar.y"
     { 
                           inside_for--; 
                           
@@ -1665,17 +1663,17 @@ yyreduce:
     break;
 
   case 38:
-#line 369 "grammar.y"
+#line 367 "grammar.y"
     { 
-                          inside_for++; 
+                           inside_for++; 
                      }
     break;
 
   case 39:
-#line 373 "grammar.y"
+#line 371 "grammar.y"
     { 
                           inside_for--; 
-                                                    
+                          
                           (yyval.term) = reduce_term(TERM_TYPE_FOR, reduce_constant(1), (yyvsp[-5].term), (yyvsp[-1].term)); 
                           
                           if ((yyval.term) == NULL)
@@ -1688,7 +1686,7 @@ yyreduce:
     break;
 
   case 40:
-#line 386 "grammar.y"
+#line 384 "grammar.y"
     { 
                          (yyval.term) = reduce_term(TERM_TYPE_OF, (yyvsp[-2].term), (yyvsp[0].term), NULL); 
                          
@@ -1702,7 +1700,7 @@ yyreduce:
     break;
 
   case 41:
-#line 397 "grammar.y"
+#line 395 "grammar.y"
     { 
                          (yyval.term) = reduce_term(TERM_TYPE_OF, reduce_constant(count_strings((yyvsp[0].term))), (yyvsp[0].term), NULL); 
                          
@@ -1716,7 +1714,7 @@ yyreduce:
     break;
 
   case 42:
-#line 408 "grammar.y"
+#line 406 "grammar.y"
     { 
                          (yyval.term) = reduce_term(TERM_TYPE_OF, reduce_constant(1), (yyvsp[0].term), NULL); 
                          
@@ -1730,89 +1728,89 @@ yyreduce:
     break;
 
   case 43:
-#line 418 "grammar.y"
+#line 416 "grammar.y"
     { (yyval.term) = NULL; }
     break;
 
   case 44:
-#line 419 "grammar.y"
+#line 417 "grammar.y"
     { (yyval.term) = (yyvsp[-1].term); }
     break;
 
   case 45:
-#line 420 "grammar.y"
+#line 418 "grammar.y"
     { (yyval.term) = reduce_term(TERM_TYPE_NOT, (yyvsp[0].term), NULL, NULL); }
     break;
 
   case 46:
-#line 421 "grammar.y"
+#line 419 "grammar.y"
     { (yyval.term) = reduce_term(TERM_TYPE_AND, (yyvsp[-2].term), (yyvsp[0].term), NULL); }
     break;
 
   case 47:
-#line 422 "grammar.y"
+#line 420 "grammar.y"
     { (yyval.term) = reduce_term(TERM_TYPE_OR, (yyvsp[-2].term), (yyvsp[0].term), NULL); }
     break;
 
   case 48:
-#line 423 "grammar.y"
+#line 421 "grammar.y"
     { (yyval.term) = reduce_term(TERM_TYPE_EQ, (yyvsp[-2].term), (yyvsp[0].term), NULL); }
     break;
 
   case 49:
-#line 424 "grammar.y"
+#line 422 "grammar.y"
     { (yyval.term) = reduce_term(TERM_TYPE_LT, (yyvsp[-2].term), (yyvsp[0].term), NULL); }
     break;
 
   case 50:
-#line 425 "grammar.y"
+#line 423 "grammar.y"
     { (yyval.term) = reduce_term(TERM_TYPE_GT, (yyvsp[-2].term), (yyvsp[0].term), NULL); }
     break;
 
   case 51:
-#line 426 "grammar.y"
+#line 424 "grammar.y"
     { (yyval.term) = reduce_term(TERM_TYPE_LE, (yyvsp[-2].term), (yyvsp[0].term), NULL); }
     break;
 
   case 52:
-#line 427 "grammar.y"
+#line 425 "grammar.y"
     { (yyval.term) = reduce_term(TERM_TYPE_GE, (yyvsp[-2].term), (yyvsp[0].term), NULL); }
     break;
 
   case 53:
-#line 428 "grammar.y"
+#line 426 "grammar.y"
     { (yyval.term) = reduce_term(TERM_TYPE_EQ, (yyvsp[-2].term), (yyvsp[0].term), NULL); }
     break;
 
   case 54:
-#line 429 "grammar.y"
+#line 427 "grammar.y"
     { (yyval.term) = reduce_term(TERM_TYPE_EQ, (yyvsp[-2].term), (yyvsp[0].term), NULL); }
     break;
 
   case 55:
-#line 430 "grammar.y"
+#line 428 "grammar.y"
     { (yyval.term) = reduce_term(TERM_TYPE_NOT_EQ, (yyvsp[-2].term), (yyvsp[0].term), NULL); }
     break;
 
   case 56:
-#line 434 "grammar.y"
+#line 432 "grammar.y"
     { (yyval.term) = (yyvsp[-1].term); }
     break;
 
   case 57:
-#line 435 "grammar.y"
-    { (yyval.term) = reduce_string_with_wildcard(yr_strdup("$*")); }
+#line 433 "grammar.y"
+    { (yyval.term) = reduce_string_with_wildcard(strdup("$*")); }
     break;
 
   case 59:
-#line 440 "grammar.y"
+#line 438 "grammar.y"
     {
                          (yyval.term) = reduce_string_enumeration((yyvsp[-2].term),(yyvsp[0].term));
                       }
     break;
 
   case 60:
-#line 446 "grammar.y"
+#line 444 "grammar.y"
     {  
                               (yyval.term) = reduce_string((yyvsp[0].term));
 
@@ -1826,7 +1824,7 @@ yyreduce:
     break;
 
   case 61:
-#line 457 "grammar.y"
+#line 455 "grammar.y"
     { 
                               (yyval.term) = reduce_string_with_wildcard((yyvsp[0].term)); 
                               
@@ -1840,47 +1838,47 @@ yyreduce:
     break;
 
   case 62:
-#line 470 "grammar.y"
+#line 468 "grammar.y"
     { (yyval.term) = reduce_filesize(); }
     break;
 
   case 63:
-#line 471 "grammar.y"
+#line 469 "grammar.y"
     { (yyval.term) = reduce_entrypoint(); }
     break;
 
   case 64:
-#line 472 "grammar.y"
+#line 470 "grammar.y"
     { (yyval.term) = reduce_term(TERM_TYPE_INT8_AT_OFFSET, (yyvsp[-1].term), NULL, NULL); }
     break;
 
   case 65:
-#line 473 "grammar.y"
+#line 471 "grammar.y"
     { (yyval.term) = reduce_term(TERM_TYPE_INT16_AT_OFFSET, (yyvsp[-1].term), NULL, NULL); }
     break;
 
   case 66:
-#line 474 "grammar.y"
+#line 472 "grammar.y"
     { (yyval.term) = reduce_term(TERM_TYPE_INT32_AT_OFFSET, (yyvsp[-1].term), NULL, NULL); }
     break;
 
   case 67:
-#line 475 "grammar.y"
+#line 473 "grammar.y"
     { (yyval.term) = reduce_term(TERM_TYPE_UINT8_AT_OFFSET, (yyvsp[-1].term), NULL, NULL); }
     break;
 
   case 68:
-#line 476 "grammar.y"
+#line 474 "grammar.y"
     { (yyval.term) = reduce_term(TERM_TYPE_UINT16_AT_OFFSET, (yyvsp[-1].term), NULL, NULL); }
     break;
 
   case 69:
-#line 477 "grammar.y"
+#line 475 "grammar.y"
     { (yyval.term) = reduce_term(TERM_TYPE_UINT32_AT_OFFSET, (yyvsp[-1].term), NULL, NULL); }
     break;
 
   case 70:
-#line 479 "grammar.y"
+#line 477 "grammar.y"
     { 
                     (yyval.term) = reduce_string_count((yyvsp[0].term)); 
                     
@@ -1894,7 +1892,7 @@ yyreduce:
     break;
 
   case 71:
-#line 490 "grammar.y"
+#line 488 "grammar.y"
     { 
                     (yyval.term) = reduce_string_offset((yyvsp[0].term)); 
 
@@ -1908,32 +1906,32 @@ yyreduce:
     break;
 
   case 72:
-#line 500 "grammar.y"
+#line 498 "grammar.y"
     { (yyval.term) = (yyvsp[-1].term); }
     break;
 
   case 73:
-#line 501 "grammar.y"
+#line 499 "grammar.y"
     { (yyval.term) = reduce_term(TERM_TYPE_ADD, (yyvsp[-2].term), (yyvsp[0].term), NULL); }
     break;
 
   case 74:
-#line 502 "grammar.y"
+#line 500 "grammar.y"
     { (yyval.term) = reduce_term(TERM_TYPE_SUB, (yyvsp[-2].term), (yyvsp[0].term), NULL); }
     break;
 
   case 75:
-#line 503 "grammar.y"
+#line 501 "grammar.y"
     { (yyval.term) = reduce_term(TERM_TYPE_MUL, (yyvsp[-2].term), (yyvsp[0].term), NULL); }
     break;
 
   case 76:
-#line 504 "grammar.y"
+#line 502 "grammar.y"
     { (yyval.term) = reduce_term(TERM_TYPE_DIV, (yyvsp[-2].term), (yyvsp[0].term), NULL); }
     break;
 
   case 78:
-#line 508 "grammar.y"
+#line 506 "grammar.y"
     { (yyval.term) = reduce_constant((yyvsp[0].integer)); }
     break;
 
@@ -1941,7 +1939,7 @@ yyreduce:
     }
 
 /* Line 1037 of yacc.c.  */
-#line 1945 "grammar.c"
+#line 1943 "grammar.c"
 
   yyvsp -= yylen;
   yyssp -= yylen;
@@ -2169,7 +2167,7 @@ yyreturn:
 }
 
 
-#line 516 "grammar.y"
+#line 514 "grammar.y"
 
 
 
@@ -2238,7 +2236,7 @@ STRING* reduce_string_declaration(char* identifier, SIZED_STRING* str, int flags
         strcpy(last_error_extra_info, identifier);
     }
     
-    yr_free(str);
+    free(str);
             
     return string;
 }
@@ -2268,7 +2266,7 @@ TAG* reduce_tags(TAG* tag_list_head, char* identifier)
 
     if (lookup_tag(tag_list_head, identifier) == NULL) /* no tags with the same identifier */
     {
-        tag = yr_malloc(sizeof(TAG));
+        tag = malloc(sizeof(TAG));
         
         if (tag != NULL)
         {
@@ -2353,7 +2351,7 @@ TERM* reduce_string(char* identifier)
         last_result = ERROR_MISPLACED_ANONYMOUS_STRING;
     }
     
-    yr_free(identifier);   
+    free(identifier);   
     return (TERM*) term;
 }
 
@@ -2392,7 +2390,7 @@ TERM* reduce_string_with_wildcard(char* identifier)
         string = string->next;
     }
     
-    yr_free(identifier);
+    free(identifier);
     return (TERM*) term;  
 }
 
@@ -2418,7 +2416,7 @@ TERM* reduce_string_at(char* identifier, TERM* offset)
         last_result = ERROR_MISPLACED_ANONYMOUS_STRING;
     }
     
-    yr_free(identifier);   
+    free(identifier);   
     return (TERM*) term;
 }
 
@@ -2438,7 +2436,7 @@ TERM* reduce_string_in_range(char* identifier, TERM* lower_offset, TERM* upper_o
         term->upper_offset = upper_offset;
     }
     
-    yr_free(identifier);   
+    free(identifier);   
     return (TERM*) term;
 }
 
@@ -2454,11 +2452,11 @@ TERM* reduce_string_in_section_by_name(char* identifier, SIZED_STRING* section_n
     }
     else
     {
-        term->section_name = yr_strdup(section_name->c_string);
+        term->section_name = strdup(section_name->c_string);
     }
     
-    yr_free(section_name);
-    yr_free(identifier);   
+    free(section_name);
+    free(identifier);   
     return (TERM*) term;
 }
 
@@ -2473,7 +2471,7 @@ TERM* reduce_string_count(char* identifier)
         strcpy(last_error_extra_info, identifier);
     }
     
-    yr_free(identifier);           
+    free(identifier);           
     return (TERM*) term;
 }
 
@@ -2488,7 +2486,7 @@ TERM* reduce_string_offset(char* identifier)
         strcpy(last_error_extra_info, identifier);
     }
     
-    yr_free(identifier);           
+    free(identifier);           
     return (TERM*) term;
 }
 
@@ -2510,7 +2508,7 @@ TERM* reduce_rule(char* identifier)
         term = NULL;
     }
     
-    yr_free(identifier);
+    free(identifier);
     return (TERM*) term;
 }
 

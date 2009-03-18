@@ -59,7 +59,7 @@ libLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libyara_la_LIBADD =
 am_libyara_la_OBJECTS = grammar.lo lex.lo ast.lo scan.lo filemap.lo \
-	error.lo eval.lo pefile.lo xtoi.lo mem.lo libyara.lo
+	error.lo compile.lo eval.lo pefile.lo xtoi.lo
 libyara_la_OBJECTS = $(am_libyara_la_OBJECTS)
 DEFAULT_INCLUDES = -I.
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -216,20 +216,19 @@ libyara_la_SOURCES = \
   scan.c \
   filemap.c \
   error.c \
+  compile.c \
   eval.c \
   pefile.c \
   xtoi.c \
-  mem.c \
-  libyara.c \
   ast.h \
   error.h \
+  compile.h \
   eval.h \
   filemap.h \
   pe.h \
   xtoi.h \
   pefile.h \
-  sizedstr.h \
-  mem.h
+  sizedstr.h
 
 libyara_la_LIBDADD = /usr/local/lib/libpcre.la
 all: config.h
@@ -329,13 +328,12 @@ distclean-compile:
 	-rm -f *.tab.c
 
 include ./$(DEPDIR)/ast.Plo
+include ./$(DEPDIR)/compile.Plo
 include ./$(DEPDIR)/error.Plo
 include ./$(DEPDIR)/eval.Plo
 include ./$(DEPDIR)/filemap.Plo
 include ./$(DEPDIR)/grammar.Plo
 include ./$(DEPDIR)/lex.Plo
-include ./$(DEPDIR)/libyara.Plo
-include ./$(DEPDIR)/mem.Plo
 include ./$(DEPDIR)/pefile.Plo
 include ./$(DEPDIR)/scan.Plo
 include ./$(DEPDIR)/xtoi.Plo

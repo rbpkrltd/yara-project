@@ -14,5 +14,23 @@ GNU General Public License for more details.
 
 */
 
-int is_pe(unsigned char* buffer, unsigned int buffer_length);
-int get_entry_point_offset(unsigned char* buffer, unsigned int buffer_length);
+#ifndef _COMPILE_H
+#define _COMPILE_H
+
+#include "ast.h"
+
+extern RULE_LIST* rule_list;
+
+extern FILE *yyin;
+extern int yydebug;
+extern int line_number;
+
+int yylex (void); 
+int yyparse (void); 
+
+
+#endif
+
+
+
+
