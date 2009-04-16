@@ -97,12 +97,12 @@ DIST_ARCHIVES = $(distdir).tar.gz
 GZIP_ENV = --best
 distuninstallcheck_listfiles = find . -type f -print
 distcleancheck_listfiles = find . -type f -print
-ACLOCAL = ${SHELL} /Users/plusvic/Projects/yara/trunk/libyara/missing --run aclocal-1.10
-AMTAR = ${SHELL} /Users/plusvic/Projects/yara/trunk/libyara/missing --run tar
+ACLOCAL = ${SHELL} /Users/plusvic/Projects/yara/tags/yara-1.2.1/libyara/missing --run aclocal-1.10
+AMTAR = ${SHELL} /Users/plusvic/Projects/yara/tags/yara-1.2.1/libyara/missing --run tar
 AR = ar
-AUTOCONF = ${SHELL} /Users/plusvic/Projects/yara/trunk/libyara/missing --run autoconf
-AUTOHEADER = ${SHELL} /Users/plusvic/Projects/yara/trunk/libyara/missing --run autoheader
-AUTOMAKE = ${SHELL} /Users/plusvic/Projects/yara/trunk/libyara/missing --run automake-1.10
+AUTOCONF = ${SHELL} /Users/plusvic/Projects/yara/tags/yara-1.2.1/libyara/missing --run autoconf
+AUTOHEADER = ${SHELL} /Users/plusvic/Projects/yara/tags/yara-1.2.1/libyara/missing --run autoheader
+AUTOMAKE = ${SHELL} /Users/plusvic/Projects/yara/tags/yara-1.2.1/libyara/missing --run automake-1.10
 AWK = awk
 CC = gcc
 CCDEPMODE = depmode=gcc3
@@ -139,7 +139,7 @@ LIBS = -lpcre -lpcre -lpcre -lpcre
 LIBTOOL = $(SHELL) $(top_builddir)/libtool
 LN_S = ln -s
 LTLIBOBJS = 
-MAKEINFO = ${SHELL} /Users/plusvic/Projects/yara/trunk/libyara/missing --run makeinfo
+MAKEINFO = ${SHELL} /Users/plusvic/Projects/yara/tags/yara-1.2.1/libyara/missing --run makeinfo
 MKDIR_P = ./install-sh -c -d
 OBJEXT = o
 PACKAGE = libyara
@@ -156,10 +156,10 @@ STRIP = strip
 VERSION = 1.1.1
 YACC = bison -y
 YFLAGS = -d
-abs_builddir = /Users/plusvic/Projects/yara/trunk/libyara
-abs_srcdir = /Users/plusvic/Projects/yara/trunk/libyara
-abs_top_builddir = /Users/plusvic/Projects/yara/trunk/libyara
-abs_top_srcdir = /Users/plusvic/Projects/yara/trunk/libyara
+abs_builddir = /Users/plusvic/Projects/yara/tags/yara-1.2.1/libyara
+abs_srcdir = /Users/plusvic/Projects/yara/tags/yara-1.2.1/libyara
+abs_top_builddir = /Users/plusvic/Projects/yara/tags/yara-1.2.1/libyara
+abs_top_srcdir = /Users/plusvic/Projects/yara/tags/yara-1.2.1/libyara
 ac_ct_CC = gcc
 ac_ct_CXX = g++
 ac_ct_F77 = 
@@ -188,7 +188,7 @@ host_vendor = apple
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
-install_sh = $(SHELL) /Users/plusvic/Projects/yara/trunk/libyara/install-sh
+install_sh = $(SHELL) /Users/plusvic/Projects/yara/tags/yara-1.2.1/libyara/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localedir = ${datarootdir}/locale
@@ -222,6 +222,7 @@ libyara_la_SOURCES = \
   libyara.c \
   lex.h \
   ast.h \
+  scan.h \
   eval.h \
   filemap.h \
   pe.h \

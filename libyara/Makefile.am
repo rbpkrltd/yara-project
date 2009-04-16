@@ -17,6 +17,7 @@ libyara_la_SOURCES = \
   libyara.c \
   lex.h \
   ast.h \
+  scan.h \
   eval.h \
   filemap.h \
   pe.h \
